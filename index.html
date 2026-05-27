@@ -1,0 +1,473 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
+<meta name="theme-color" content="#080808">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="apple-mobile-web-app-title" content="GymTrack">
+<title>GymTrack</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;700;800;900&family=Barlow:wght@400;500;600&display=swap');
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+:root{--bg:#080808;--s1:#111;--s2:#181818;--bd:#222;--acc:#FF5500;--tx:#f0f0f0;--mu:#555;--ok:#00c853;}
+body{background:var(--bg);color:var(--tx);font-family:'Barlow',sans-serif;overscroll-behavior:none;}
+.app{max-width:480px;margin:0 auto;min-height:100vh;display:flex;flex-direction:column;background:var(--bg);}
+.hd{background:var(--bg);padding:14px 18px 12px;border-bottom:2px solid var(--acc);position:sticky;top:0;z-index:100;display:flex;justify-content:space-between;align-items:center;}
+.hd-t{font-family:'Barlow Condensed',sans-serif;font-size:26px;font-weight:900;letter-spacing:2px;text-transform:uppercase;}
+.hd-t span{color:var(--acc);}
+.ct{flex:1;overflow-y:auto;padding-bottom:72px;}
+.nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:480px;background:var(--s1);border-top:2px solid var(--bd);display:flex;z-index:100;}
+.nb{flex:1;padding:10px 4px;border:none;background:none;color:var(--mu);font-family:'Barlow Condensed',sans-serif;font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:3px;transition:color .2s;}
+.nb.on{color:var(--acc);}
+.btn{display:block;width:100%;padding:13px;border:none;font-family:'Barlow Condensed',sans-serif;font-size:15px;font-weight:700;letter-spacing:2px;text-transform:uppercase;cursor:pointer;}
+.btn-a{background:var(--acc);color:#fff;}
+.btn-a:disabled{opacity:.4;cursor:not-allowed;}
+.btn-b{background:transparent;color:var(--tx);border:1px solid var(--bd);}
+.btn-b:hover{border-color:var(--acc);color:var(--acc);}
+.btn-g{background:var(--ok);color:#fff;}
+.btn-d{background:transparent;border:1px solid #c00;color:#c00;padding:7px 10px;font-family:'Barlow Condensed',sans-serif;font-size:12px;font-weight:700;letter-spacing:1px;cursor:pointer;}
+.inp{background:var(--s2);border:1px solid var(--bd);color:var(--tx);padding:10px;font-family:'Barlow',sans-serif;font-size:16px;width:100%;outline:none;transition:border-color .2s;-webkit-appearance:none;border-radius:0;}
+.inp:focus{border-color:var(--acc);}
+.inp-c{text-align:center;}
+.sel{background:var(--s2);border:1px solid var(--bd);color:var(--tx);padding:10px 32px 10px 12px;font-family:'Barlow',sans-serif;font-size:14px;width:100%;outline:none;cursor:pointer;-webkit-appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='7' viewBox='0 0 10 7'%3E%3Cpath fill='%23555' d='M5 7L0 0h10z'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center;border-radius:0;}
+.ct-lbl{font-family:'Barlow Condensed',sans-serif;font-size:12px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--mu);margin-bottom:10px;}
+.stat{background:var(--s2);padding:12px 8px;text-align:center;border:1px solid var(--bd);}
+.stat-v{font-family:'Barlow Condensed',sans-serif;font-size:30px;font-weight:900;color:var(--acc);line-height:1;}
+.stat-l{font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--mu);margin-top:3px;}
+.day-pill{display:inline-block;padding:3px 10px;font-family:'Barlow Condensed',sans-serif;font-size:12px;font-weight:700;letter-spacing:2px;text-transform:uppercase;}
+.ex-row{margin:0 12px 6px;border:1px solid var(--bd);background:var(--s1);transition:border-color .2s;}
+.ex-row.open{border-color:var(--acc);}
+.ex-hd{padding:12px 14px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;}
+.ex-nm{font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:17px;}
+.ex-prev{font-size:11px;color:var(--mu);margin-top:3px;}
+.ex-bd{padding:0 14px 14px;}
+.set-r{display:flex;gap:6px;align-items:center;margin-bottom:10px;}
+.set-n{font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:18px;color:var(--acc);width:22px;text-align:center;flex-shrink:0;}
+.rir-row{display:flex;gap:3px;margin-top:5px;margin-left:28px;flex-wrap:wrap;}
+.rb{padding:5px 8px;border:1px solid var(--bd);background:transparent;color:var(--mu);font-family:'Barlow Condensed',sans-serif;font-size:12px;font-weight:700;cursor:pointer;transition:all .15s;}
+.rb.on{background:var(--acc);border-color:var(--acc);color:#fff;}
+.wk-hd{background:var(--acc);padding:14px 18px;display:flex;justify-content:space-between;align-items:center;}
+.wk-tt{font-family:'Barlow Condensed',sans-serif;font-size:22px;font-weight:900;color:#fff;letter-spacing:2px;text-transform:uppercase;}
+.timer{font-family:'Barlow Condensed',sans-serif;font-size:20px;color:#fff;font-weight:700;}
+.prev-box{background:#0d0d0d;padding:8px 12px;margin-bottom:10px;border-left:2px solid #2a2a2a;font-size:12px;color:var(--mu);}
+.hist-item{margin:10px 14px;background:var(--s1);border:1px solid var(--bd);}
+.hist-hd{padding:10px 14px;border-bottom:1px solid var(--bd);display:flex;justify-content:space-between;align-items:center;}
+.hist-bd{padding:10px 14px;}
+.empty{text-align:center;padding:50px 20px;color:var(--mu);font-family:'Barlow Condensed',sans-serif;font-size:17px;font-weight:600;letter-spacing:1px;}
+.chat-wrap{display:flex;flex-direction:column;}
+.chat-msgs{overflow-y:auto;padding:12px 14px;display:flex;flex-direction:column;gap:10px;}
+.msg{max-width:88%;padding:10px 13px;font-size:14px;line-height:1.6;white-space:pre-wrap;}
+.msg-u{background:var(--acc);color:#fff;align-self:flex-end;}
+.msg-a{background:var(--s2);border:1px solid var(--bd);align-self:flex-start;color:#e0e0e0;}
+.chat-in-r{display:flex;gap:6px;padding:10px 12px;border-top:1px solid var(--bd);background:var(--bg);}
+.badge{display:inline-flex;align-items:center;justify-content:center;min-width:20px;height:20px;background:var(--acc);font-family:'Barlow Condensed',sans-serif;font-size:11px;font-weight:900;color:#fff;padding:0 4px;}
+.tip{background:#0a180a;border:1px solid #1a3a1a;padding:8px 12px;font-size:12px;color:#3a8a3a;line-height:1.5;margin:0 0 8px;}
+.modal-ov{position:fixed;inset:0;background:rgba(0,0,0,.88);z-index:200;display:flex;align-items:center;justify-content:center;padding:20px;}
+.modal{background:#111;border:1px solid #333;border-top:3px solid var(--acc);padding:24px;width:100%;max-width:380px;}
+.modal-t{font-family:'Barlow Condensed',sans-serif;font-size:20px;font-weight:900;letter-spacing:2px;color:var(--acc);margin-bottom:8px;}
+.modal-s{font-size:13px;color:#777;line-height:1.6;margin-bottom:16px;}
+.modal-s a{color:var(--acc);}
+.key-saved{background:#0a1a0a;border:1px solid #1a3a1a;padding:8px 12px;font-size:12px;color:var(--ok);margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;}
+.pr-badge{font-size:11px;color:var(--ok);font-weight:700;margin-left:6px;}
+svg{display:block;}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/recharts@2.12.7/umd/Recharts.js"></script>
+<script src="https://unpkg.com/htm@3.1.1/dist/htm.js"></script>
+<script>
+const html = htm.bind(React.createElement);
+const {useState,useEffect,useRef} = React;
+const {LineChart,Line,XAxis,YAxis,Tooltip,ResponsiveContainer,CartesianGrid} = Recharts;
+
+// ── Constants ──────────────────────────────────────────────────
+const EXERCISES = {
+  Push:["Bench Press","Incline DB Press","Overhead Press","Dips","Cable Fly","Lateral Raise","Tricep Pushdown","Skull Crushers"],
+  Pull:["Deadlift","Barbell Row","Lat Pulldown","Pull-ups","Seated Cable Row","Face Pull","Barbell Curl","Hammer Curl"],
+  Legs:["Squat","Romanian Deadlift","Leg Press","Hack Squat","Leg Curl","Leg Extension","Hip Thrust","Calf Raise"]
+};
+const RIR_OPTS=[{v:0,l:"0"},{v:1,l:"1"},{v:2,l:"2"},{v:3,l:"3"},{v:4,l:"4+"}];
+const DC={Push:"#FF5500",Pull:"#00c853",Legs:"#7c7cff"};
+const DB={Push:"rgba(255,85,0,.12)",Pull:"rgba(0,200,83,.12)",Legs:"rgba(124,124,255,.12)"};
+const ALL_EX=[...new Set(Object.values(EXERCISES).flat())];
+
+// ── Helpers ────────────────────────────────────────────────────
+const fmt=ts=>new Date(ts).toLocaleDateString("pt-PT",{weekday:"short",day:"numeric",month:"short"});
+const fmtT=s=>`${Math.floor(s/60).toString().padStart(2,"0")}:${(s%60).toString().padStart(2,"0")}`;
+const volOf=sets=>sets.reduce((a,s)=>a+(parseFloat(s.weight)||0)*(parseInt(s.reps)||0),0);
+const getNext=h=>{if(!h.length)return"Push";const c=["Push","Pull","Legs"];return c[(c.indexOf(h[h.length-1].day)+1)%3];};
+const lastPerf=(h,n)=>{for(let i=h.length-1;i>=0;i--){const e=h[i].exercises?.find(e=>e.name===n);if(e?.sets?.length)return e;}return null;};
+const load=k=>{try{const s=localStorage.getItem(k);return s?JSON.parse(s):null;}catch{return null;}};
+const save=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v));}catch{}};
+
+// ── SVG Icons ──────────────────────────────────────────────────
+const IconHome=c=>html`<svg viewBox="0 0 24 24" fill=${c} width="22" height="22"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg>`;
+const IconGym=c=>html`<svg viewBox="0 0 24 24" fill=${c} width="22" height="22"><path d="M20.57 14.86L22 13.43 20.57 12 17 15.57 8.43 7 12 3.43 10.57 2 9.14 3.43 7.71 2 5.57 4.14 4.14 2.71 2.71 4.14l1.43 1.43L2 7.71l1.43 1.43L2 10.57 3.43 12 7 8.43 15.57 17 12 20.57 13.43 22l1.43-1.43L16.29 22l2.14-2.14 1.43 1.43 1.43-1.43-1.43-1.43L22 16.29z"/></svg>`;
+const IconHist=c=>html`<svg viewBox="0 0 24 24" fill=${c} width="22" height="22"><path d="M13 3c-4.97 0-9 4.03-9 9H1l3.89 3.89.07.14L9 12H6c0-3.87 3.13-7 7-7s7 3.13 7 7-3.13 7-7 7c-1.93 0-3.68-.79-4.94-2.06l-1.42 1.42C8.27 19.99 10.51 21 13 21c4.97 0 9-4.03 9-9s-4.03-9-9-9zm-1 5v5l4.28 2.54.72-1.21-3.5-2.08V8H12z"/></svg>`;
+const IconProg=c=>html`<svg viewBox="0 0 24 24" fill=${c} width="22" height="22"><path d="M3.5 18.49l6-6.01 4 4L22 6.92l-1.41-1.41-7.09 7.97-4-4L2 16.99z"/></svg>`;
+const IconChat=c=>html`<svg viewBox="0 0 24 24" fill=${c} width="22" height="22"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-2 12H6v-2h12v2zm0-3H6V9h12v2zm0-3H6V6h12v2z"/></svg>`;
+
+// ── Main App ───────────────────────────────────────────────────
+function GymTracker() {
+  const [view,setView]     = useState("home");
+  const [history,setHistory]= useState(()=>load("gt_h")||[]);
+  const [activeWk,setActiveWk]= useState(null);
+  const [expandEx,setExpandEx]= useState(null);
+  const [timer,setTimer]   = useState(0);
+  const [progEx,setProgEx] = useState("Bench Press");
+  const [apiKey,setApiKey] = useState(()=>localStorage.getItem("gt_key")||"");
+  const [showKeyModal,setShowKeyModal]= useState(false);
+  const [keyInput,setKeyInput]= useState("");
+  const [chat,setChat]     = useState([{r:"a",c:"Olá! Sou o teu Coach IA, baseado nos princípios do Renaissance Periodization.\n\nPosso ajudar-te com:\n• Progressão de carga e volume\n• MEV, MAV, MRV e RIR\n• Periodização e deload\n• Técnica e selecção de exercícios\n\nPergunta à vontade! 💪"}]);
+  const [chatIn,setChatIn] = useState("");
+  const [aiLoad,setAiLoad] = useState(false);
+  const timerRef = useRef(null);
+  const chatEnd  = useRef(null);
+
+  useEffect(()=>{
+    if(activeWk){timerRef.current=setInterval(()=>setTimer(t=>t+1),1000);}
+    else{clearInterval(timerRef.current);setTimer(0);}
+    return()=>clearInterval(timerRef.current);
+  },[!!activeWk]);
+
+  useEffect(()=>{chatEnd.current?.scrollIntoView({behavior:"smooth"});},[chat.length]);
+
+  const saveHist=h=>{setHistory(h);save("gt_h",h);};
+
+  // ── Workout actions ──
+  const startWk=day=>{
+    setActiveWk({day,exercises:EXERCISES[day].map(n=>({name:n,sets:[]}))});
+    setExpandEx(null);setView("workout");
+  };
+  const addSet=name=>setActiveWk(p=>({...p,exercises:p.exercises.map(e=>e.name===name?{...e,sets:[...e.sets,{id:Date.now(),weight:"",reps:"",rir:2}]}:e)}));
+  const updSet=(name,sid,field,val)=>setActiveWk(p=>({...p,exercises:p.exercises.map(e=>e.name===name?{...e,sets:e.sets.map(s=>s.id===sid?{...s,[field]:val}:s)}:e)}));
+  const delSet=(name,sid)=>setActiveWk(p=>({...p,exercises:p.exercises.map(e=>e.name===name?{...e,sets:e.sets.filter(s=>s.id!==sid)}:e)}));
+  const finishWk=()=>{
+    const logged=activeWk.exercises.filter(e=>e.sets.filter(s=>s.weight&&s.reps).length>0);
+    if(!logged.length){alert("Adiciona pelo menos 1 série antes de terminar!");return;}
+    const session={id:Date.now(),day:activeWk.day,date:Date.now(),dur:timer,
+      exercises:logged.map(e=>({name:e.name,sets:e.sets.filter(s=>s.weight&&s.reps).map(s=>({weight:parseFloat(s.weight)||0,reps:parseInt(s.reps)||0,rir:s.rir}))}))};
+    saveHist([...history,session]);setActiveWk(null);setView("home");
+  };
+
+  // ── API Key ──
+  const saveKey=()=>{if(!keyInput.trim())return;localStorage.setItem("gt_key",keyInput.trim());setApiKey(keyInput.trim());setShowKeyModal(false);setKeyInput("");};
+  const deleteKey=()=>{localStorage.removeItem("gt_key");setApiKey("");};
+
+  // ── Coach ──
+  const sendMsg=async()=>{
+    if(!chatIn.trim()||aiLoad)return;
+    if(!apiKey){setShowKeyModal(true);return;}
+    const msg=chatIn.trim();setChatIn("");
+    const newChat=[...chat,{r:"u",c:msg}];
+    setChat(newChat);setAiLoad(true);
+    const recentData=history.slice(-6).map(w=>`${w.day}(${new Date(w.date).toLocaleDateString("pt-PT")}): `+w.exercises.map(e=>`${e.name}[${e.sets.map(s=>`${s.weight}kg×${s.reps}@${s.rir}RIR`).join(",")}]`).join(" | ")).join("\n");
+    try{
+      const msgs=newChat.slice(1).map(m=>({role:m.r==="u"?"user":"assistant",content:m.c}));
+      const resp=await fetch("https://api.anthropic.com/v1/messages",{
+        method:"POST",
+        headers:{"Content-Type":"application/json","x-api-key":apiKey,"anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"},
+        body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:1000,
+          system:`És um treinador pessoal virtual especializado em hipertrofia, baseado nos princípios do Renaissance Periodization (RP). Dominas MEV, MAV, MRV, RIR, progressão dupla, deload e periodização. O utilizador faz Push/Pull/Legs. Responde SEMPRE em português de Portugal. Sê conciso e prático.\n\nTreinos recentes:\n${recentData||"Sem treinos ainda."}`,
+          messages:msgs})
+      });
+      const d=await resp.json();
+      if(d.error)throw new Error(d.error.message);
+      const t=d.content?.find(b=>b.type==="text")?.text||"Sem resposta.";
+      setChat(p=>[...p,{r:"a",c:t}]);
+    }catch(err){
+      setChat(p=>[...p,{r:"a",c:`Erro: ${err.message||"Verifica a tua API key e ligação."}`}]);
+    }
+    setAiLoad(false);
+  };
+
+  // ── Progress data ──
+  const progData=name=>history.filter(w=>w.exercises.some(e=>e.name===name)).map(w=>{
+    const e=w.exercises.find(e=>e.name===name);
+    return{date:fmt(w.date),vol:Math.round(volOf(e.sets)),max:Math.max(0,...e.sets.map(s=>s.weight))};
+  });
+
+  const nextDay=getNext(history);
+  const curView=activeWk?"workout":view;
+
+  // ── View: Home ──
+  const Home=()=>{
+    const week=history.filter(w=>Date.now()-w.date<7*864e5);
+    const wVol=week.reduce((a,w)=>a+w.exercises.reduce((b,e)=>b+volOf(e.sets),0),0);
+    const wSets=week.reduce((a,w)=>a+w.exercises.reduce((b,e)=>b+e.sets.length,0),0);
+    const last=history[history.length-1];
+    const prs=last?last.exercises.flatMap(e=>{
+      const mx=Math.max(...e.sets.map(s=>s.weight));
+      const prev=history.slice(0,-1).filter(w=>w.exercises.some(x=>x.name===e.name));
+      if(!prev.length)return[];
+      const mx2=Math.max(...prev.flatMap(w=>w.exercises.filter(x=>x.name===e.name).flatMap(x=>x.sets.map(s=>s.weight))));
+      return mx>mx2?[{name:e.name,old:mx2,now:mx}]:[];
+    }):[];
+    return html`<div>
+      <div style=${{background:"linear-gradient(135deg,#0f0f0f,#1a0900)",padding:"22px 18px 20px",borderBottom:"2px solid #FF5500"}}>
+        <div style=${{fontFamily:"Barlow Condensed",fontSize:12,fontWeight:700,letterSpacing:3,color:"#555",textTransform:"uppercase",marginBottom:4}}>Próximo Treino</div>
+        <div style=${{fontFamily:"Barlow Condensed",fontSize:56,fontWeight:900,lineHeight:1,textTransform:"uppercase",letterSpacing:2,color:DC[nextDay]}}>${nextDay}</div>
+        <div style=${{fontSize:12,color:"#555",marginTop:4,marginBottom:14}}>${EXERCISES[nextDay].length} exercícios disponíveis</div>
+        <button class="btn btn-a" style=${{maxWidth:200}} onClick=${()=>startWk(nextDay)}>▶ INICIAR ${nextDay}</button>
+        <div style=${{display:"flex",gap:8,marginTop:10}}>
+          ${["Push","Pull","Legs"].filter(d=>d!==nextDay).map(d=>html`
+            <button key=${d} class="btn btn-b" style=${{maxWidth:110,fontSize:13,padding:"9px 12px"}} onClick=${()=>startWk(d)}>${d}</button>
+          `)}
+        </div>
+      </div>
+      <div style=${{padding:"14px 14px 0"}}>
+        <div class="ct-lbl">Esta Semana</div>
+        <div style=${{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8}}>
+          <div class="stat"><div class="stat-v">${week.length}</div><div class="stat-l">Treinos</div></div>
+          <div class="stat"><div class="stat-v">${wVol>=1000?`${(wVol/1000).toFixed(1)}k`:Math.round(wVol)}</div><div class="stat-l">Volume kg</div></div>
+          <div class="stat"><div class="stat-v">${wSets}</div><div class="stat-l">Séries</div></div>
+        </div>
+      </div>
+      ${prs.length>0&&html`<div style=${{padding:"12px 14px 0"}}>
+        <div class="ct-lbl">🏆 Novos PRs</div>
+        ${prs.map((pr,i)=>html`<div key=${i} style=${{background:"#0a1a0a",border:"1px solid #1a3a1a",padding:"8px 12px",marginBottom:6,display:"flex",justifyContent:"space-between"}}>
+          <span style=${{fontFamily:"Barlow Condensed",fontSize:15,fontWeight:700}}>${pr.name}</span>
+          <span style=${{fontFamily:"Barlow Condensed",fontSize:15,color:DC.Pull}}>${pr.old}→${pr.now}kg</span>
+        </div>`)}
+      </div>`}
+      ${history.length>0&&html`<div style=${{padding:"12px 14px 4px"}}>
+        <div class="ct-lbl">Últimos Treinos</div>
+        ${[...history].slice(-4).reverse().map(w=>html`
+          <div key=${w.id} style=${{marginBottom:6,background:"#111",border:"1px solid #1a1a1a",padding:"10px 14px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+            <div>
+              <span class="day-pill" style=${{background:DB[w.day],color:DC[w.day]}}>${w.day}</span>
+              <span style=${{fontSize:12,color:"#666",marginLeft:8}}>${fmt(w.date)}</span>
+            </div>
+            <div style=${{textAlign:"right"}}>
+              <div style=${{fontFamily:"Barlow Condensed",fontSize:16,fontWeight:700,color:"#FF5500"}}>${Math.round(w.exercises.reduce((a,e)=>a+volOf(e.sets),0))}kg</div>
+              <div style=${{fontSize:11,color:"#444"}}>${fmtT(w.dur)}</div>
+            </div>
+          </div>
+        `)}
+      </div>`}
+      ${!history.length&&html`<div class="empty"><div style=${{fontSize:44,marginBottom:10}}>🏋️</div><div>Sem treinos ainda!</div><div style=${{fontSize:13,color:"#444",marginTop:6,fontFamily:"Barlow",fontWeight:400}}>Carrega em INICIAR para começar</div></div>`}
+    </div>`;
+  };
+
+  // ── View: Workout ──
+  const Workout=()=>{
+    if(!activeWk)return null;
+    return html`<div>
+      <div class="wk-hd">
+        <div>
+          <div class="wk-tt">TREINO ${activeWk.day.toUpperCase()}</div>
+          <div style=${{fontSize:12,color:"rgba(255,255,255,.65)",marginTop:2}}>${activeWk.exercises.filter(e=>e.sets.filter(s=>s.weight&&s.reps).length>0).length} exercícios activos</div>
+        </div>
+        <div style=${{textAlign:"right"}}>
+          <div class="timer">⏱ ${fmtT(timer)}</div>
+          <button class="btn btn-g" style=${{marginTop:6,padding:"7px 14px",fontSize:13,width:"auto"}} onClick=${finishWk}>✓ GUARDAR</button>
+        </div>
+      </div>
+      <div style=${{padding:"8px 0 16px"}}>
+        ${activeWk.exercises.map(ex=>{
+          const open=expandEx===ex.name;
+          const lp=lastPerf(history,ex.name);
+          const valid=ex.sets.filter(s=>s.weight&&s.reps);
+          return html`<div key=${ex.name} class=${"ex-row"+(open?" open":"")}>
+            <div class="ex-hd" onClick=${()=>setExpandEx(open?null:ex.name)}>
+              <div>
+                <div class="ex-nm">${ex.name}</div>
+                ${lp&&html`<div class="ex-prev">Último: ${lp.sets.map(s=>`${s.weight}×${s.reps}`).join(" · ")}</div>`}
+              </div>
+              <div style=${{display:"flex",alignItems:"center",gap:8}}>
+                ${valid.length>0&&html`<span class="badge">${valid.length}</span>`}
+                <span style=${{color:"#444",fontSize:16}}>${open?"▲":"▼"}</span>
+              </div>
+            </div>
+            ${open&&html`<div class="ex-bd">
+              ${lp&&html`<div class="prev-box"><b style=${{color:"#FF5500"}}>ANTERIOR:</b> ${lp.sets.map(s=>`${s.weight}kg×${s.reps} @${s.rir}RIR`).join(" | ")}</div>`}
+              ${ex.sets.map((s,i)=>html`<div key=${s.id} style=${{marginBottom:12}}>
+                <div class="set-r">
+                  <div class="set-n">${i+1}</div>
+                  <input class="inp inp-c" type="number" inputMode="decimal" placeholder="kg" value=${s.weight} onInput=${e=>updSet(ex.name,s.id,"weight",e.target.value)} style=${{flex:1,minWidth:0}} />
+                  <input class="inp inp-c" type="number" inputMode="numeric" placeholder="reps" value=${s.reps} onInput=${e=>updSet(ex.name,s.id,"reps",e.target.value)} style=${{flex:1,minWidth:0}} />
+                  <button class="btn-d" onClick=${()=>delSet(ex.name,s.id)}>✕</button>
+                </div>
+                <div class="rir-row">
+                  ${RIR_OPTS.map(ro=>html`<button key=${ro.v} class=${"rb"+(s.rir===ro.v?" on":"")} onClick=${()=>updSet(ex.name,s.id,"rir",ro.v)}>${ro.l} RIR</button>`)}
+                </div>
+              </div>`)}
+              <button class="btn btn-b" style=${{padding:"9px",fontSize:13}} onClick=${()=>addSet(ex.name)}>+ ADICIONAR SÉRIE</button>
+            </div>`}
+          </div>`;
+        })}
+      </div>
+    </div>`;
+  };
+
+  // ── View: History ──
+  const History=()=>{
+    if(!history.length)return html`<div class="empty"><div>Sem histórico ainda.</div><div style=${{fontSize:13,color:"#444",marginTop:6,fontFamily:"Barlow",fontWeight:400}}>Completa o teu primeiro treino!</div></div>`;
+    return html`<div>
+      <div style=${{padding:"12px 14px 4px"}}><div class="ct-lbl">HISTÓRICO · ${history.length} TREINOS</div></div>
+      ${[...history].reverse().map(w=>html`
+        <div key=${w.id} class="hist-item">
+          <div class="hist-hd">
+            <div style=${{display:"flex",alignItems:"center",gap:8}}>
+              <span class="day-pill" style=${{background:DB[w.day],color:DC[w.day]}}>${w.day}</span>
+              <span style=${{fontSize:12,color:"#666"}}>${fmt(w.date)}</span>
+            </div>
+            <div style=${{textAlign:"right"}}>
+              <span style=${{fontFamily:"Barlow Condensed",fontSize:15,fontWeight:700,color:"#FF5500"}}>${Math.round(w.exercises.reduce((a,e)=>a+volOf(e.sets),0))}kg</span>
+              <span style=${{fontSize:11,color:"#444",marginLeft:8}}>${fmtT(w.dur)}</span>
+            </div>
+          </div>
+          <div class="hist-bd">
+            ${w.exercises.map(e=>html`<div key=${e.name} style=${{marginBottom:5}}>
+              <span style=${{fontFamily:"Barlow Condensed",fontSize:14,fontWeight:700}}>${e.name}</span>
+              <span style=${{fontSize:12,color:"#555",marginLeft:8}}>${e.sets.map(s=>`${s.weight}×${s.reps}`).join(" · ")}</span>
+            </div>`)}
+          </div>
+        </div>
+      `)}
+    </div>`;
+  };
+
+  // ── View: Progress ──
+  const Progress=()=>{
+    const data=progData(progEx);
+    return html`<div>
+      <div style=${{padding:"14px 14px 0"}}>
+        <div class="ct-lbl">PROGRESSO POR EXERCÍCIO</div>
+        <select class="sel" value=${progEx} onChange=${e=>setProgEx(e.target.value)}>
+          ${ALL_EX.map(ex=>html`<option key=${ex} value=${ex}>${ex}</option>`)}
+        </select>
+      </div>
+      ${data.length<2?html`<div class="empty" style=${{paddingTop:40}}><div>Sem dados suficientes</div><div style=${{fontSize:13,color:"#444",marginTop:6,fontFamily:"Barlow",fontWeight:400}}>Precisas de ≥2 sessões com ${progEx}</div></div>`
+      :html`<div>
+        <div style=${{padding:"14px 14px 0"}}>
+          <div class="ct-lbl" style=${{color:"#FF5500"}}>Peso Máximo (kg)</div>
+          <${ResponsiveContainer} width="100%" height=${170}>
+            <${LineChart} data=${data}>
+              <${CartesianGrid} strokeDasharray="3 3" stroke="#1a1a1a"/>
+              <${XAxis} dataKey="date" tick=${{fill:"#444",fontSize:9}} interval="preserveStartEnd"/>
+              <${YAxis} tick=${{fill:"#444",fontSize:9}} width=${35}/>
+              <${Tooltip} contentStyle=${{background:"#111",border:"1px solid #333",fontFamily:"Barlow",fontSize:12}}/>
+              <${Line} type="monotone" dataKey="max" stroke="#FF5500" strokeWidth=${2} dot=${{fill:"#FF5500",r:4}} name="Peso (kg)"/>
+            </${LineChart}>
+          </${ResponsiveContainer}>
+        </div>
+        <div style=${{padding:"14px 14px 0"}}>
+          <div class="ct-lbl" style=${{color:"#00c853"}}>Volume Total (kg)</div>
+          <${ResponsiveContainer} width="100%" height=${170}>
+            <${LineChart} data=${data}>
+              <${CartesianGrid} strokeDasharray="3 3" stroke="#1a1a1a"/>
+              <${XAxis} dataKey="date" tick=${{fill:"#444",fontSize:9}} interval="preserveStartEnd"/>
+              <${YAxis} tick=${{fill:"#444",fontSize:9}} width=${40}/>
+              <${Tooltip} contentStyle=${{background:"#111",border:"1px solid #333",fontFamily:"Barlow",fontSize:12}}/>
+              <${Line} type="monotone" dataKey="vol" stroke="#00c853" strokeWidth=${2} dot=${{fill:"#00c853",r:4}} name="Volume (kg)"/>
+            </${LineChart}>
+          </${ResponsiveContainer}>
+        </div>
+        <div style=${{padding:"14px 14px"}}>
+          <div class="ct-lbl">REGISTO</div>
+          ${[...data].reverse().map((d,i,arr)=>{
+            const isPR=i<arr.length-1&&d.max>arr[i+1].max;
+            return html`<div key=${i} style=${{display:"flex",justifyContent:"space-between",padding:"8px 0",borderBottom:"1px solid #181818"}}>
+              <span style=${{fontSize:12,color:"#666"}}>${d.date}</span>
+              <div style=${{display:"flex",gap:16,alignItems:"center"}}>
+                <span style=${{fontFamily:"Barlow Condensed",fontSize:15,fontWeight:700,color:"#FF5500"}}>${d.max}kg${isPR?html`<span class="pr-badge"> PR 🏆</span>`:""}</span>
+                <span style=${{fontFamily:"Barlow Condensed",fontSize:14,color:"#00c853"}}>${d.vol}kg</span>
+              </div>
+            </div>`;
+          })}
+        </div>
+      </div>`}
+    </div>`;
+  };
+
+  // ── View: Coach ──
+  const Coach=()=>{
+    const chatH=window.innerHeight-140;
+    return html`<div class="chat-wrap" style=${{height:chatH}}>
+      <div style=${{padding:"10px 14px 6px"}}>
+        ${apiKey?html`<div class="key-saved">
+          <span>✓ API Key configurada</span>
+          <button onClick=${deleteKey} style=${{background:"none",border:"none",color:"#c00",fontFamily:"Barlow Condensed",fontSize:12,fontWeight:700,cursor:"pointer",letterSpacing:1}}>REMOVER</button>
+        </div>`
+        :html`<div class="tip"><b>⚠ Coach IA desactivado</b> — Clica em ENVIAR para configurar a tua API key da Anthropic.</div>`}
+      </div>
+      <div class="chat-msgs" style=${{flex:1}}>
+        ${chat.map((m,i)=>html`
+          <div key=${i} style=${{alignSelf:m.r==="u"?"flex-end":"flex-start",display:"flex",flexDirection:"column",alignItems:m.r==="u"?"flex-end":"flex-start",maxWidth:"88%"}}>
+            ${m.r==="a"&&html`<div style=${{fontSize:10,color:"#FF5500",fontFamily:"Barlow Condensed",fontWeight:700,letterSpacing:2,marginBottom:3}}>COACH IA</div>`}
+            <div class=${"msg msg-"+m.r}>${m.c}</div>
+          </div>
+        `)}
+        ${aiLoad&&html`<div style=${{alignSelf:"flex-start",padding:"10px 14px",background:"#111",border:"1px solid #1a1a1a",color:"#FF5500",fontFamily:"Barlow Condensed",fontSize:14,letterSpacing:2}}>A PENSAR...</div>`}
+        <div ref=${chatEnd}/>
+      </div>
+      <div class="chat-in-r">
+        <input class="inp" style=${{flex:1}} placeholder=${apiKey?"Pergunta ao teu coach...":"Configura a API key primeiro..."} value=${chatIn}
+          onInput=${e=>setChatIn(e.target.value)}
+          onKeyDown=${e=>e.key==="Enter"&&!e.shiftKey&&sendMsg()} />
+        <button onClick=${sendMsg} disabled=${aiLoad} style=${{background:!aiLoad?"#FF5500":"#2a2a2a",border:"none",color:"#fff",padding:"10px 14px",fontFamily:"Barlow Condensed",fontSize:14,fontWeight:700,letterSpacing:1,textTransform:"uppercase",cursor:"pointer",flexShrink:0}}>ENVIAR</button>
+      </div>
+      ${showKeyModal&&html`<div class="modal-ov" onClick=${e=>{if(e.target===e.currentTarget)setShowKeyModal(false)}}>
+        <div class="modal">
+          <div class="modal-t">API KEY · ANTHROPIC</div>
+          <div class="modal-s">
+            Para usar o Coach IA precisas de uma API key gratuita da Anthropic.<br/><br/>
+            1. Vai a <a href="https://console.anthropic.com" target="_blank">console.anthropic.com</a><br/>
+            2. Cria conta → <b>API Keys</b> → <b>Create Key</b><br/>
+            3. Cola aqui em baixo<br/><br/>
+            <span style=${{color:"#FF5500"}}>A key fica guardada só no teu dispositivo.</span>
+          </div>
+          <input class="inp" placeholder="sk-ant-..." value=${keyInput} onInput=${e=>setKeyInput(e.target.value)} style=${{marginBottom:10}}/>
+          <button class="btn btn-a" onClick=${saveKey} disabled=${!keyInput.trim()}>GUARDAR KEY</button>
+          <button class="btn btn-b" style=${{marginTop:8}} onClick=${()=>setShowKeyModal(false)}>CANCELAR</button>
+        </div>
+      </div>`}
+    </div>`;
+  };
+
+  // ── Nav ──
+  const NAV=[
+    {id:"home",   l:"Início",   ic:IconHome},
+    {id:"workout",l:"Treino",   ic:IconGym},
+    {id:"history",l:"Histórico",ic:IconHist},
+    {id:"progress",l:"Progresso",ic:IconProg},
+    {id:"coach",  l:"Coach IA", ic:IconChat},
+  ];
+
+  return html`<div class="app">
+    <div class="hd">
+      <div class="hd-t">GYM<span>TRACK</span></div>
+      ${activeWk&&html`<div style=${{fontFamily:"Barlow Condensed",fontSize:14,fontWeight:700,color:"#FF5500",letterSpacing:2}}>● ACTIVO</div>`}
+    </div>
+    <div class="ct">
+      ${curView==="home"    &&html`<${Home}/>`}
+      ${curView==="workout" &&html`<${Workout}/>`}
+      ${curView==="history" &&html`<${History}/>`}
+      ${curView==="progress"&&html`<${Progress}/>`}
+      ${curView==="coach"   &&html`<${Coach}/>`}
+    </div>
+    <nav class="nav">
+      ${NAV.map(n=>html`
+        <button key=${n.id} class=${"nb"+(curView===n.id?" on":"")} onClick=${()=>{
+          if(n.id==="workout"){activeWk?setView("workout"):startWk(nextDay);}
+          else setView(n.id);
+        }}>
+          ${n.ic(curView===n.id?"#FF5500":"#555")}
+          ${n.l}
+        </button>
+      `)}
+    </nav>
+  </div>`;
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(React.createElement(GymTracker));
+</script>
+</body>
+</html>
