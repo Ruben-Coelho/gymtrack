@@ -289,6 +289,12 @@ async function runDiag(){
     ok(!!navigator.serviceWorker.controller,"Service worker a controlar esta página (se ❌, recarrega 1 vez)");
   }else ok(false,"Este browser não suporta service workers");
   ok(!!DIP,"O Chrome considera a app instalável"+(DIP?" (aparece o botão INSTALAR APP)":" (ainda não avisou)"));
+  try{
+    if(navigator.storage&&navigator.storage.persisted){
+      const per=await navigator.storage.persisted();
+      ok(per,"Armazenamento persistente (os dados não são apagados automaticamente)"+(per?"":" — instala a app e usa-a algumas vezes; o Chrome decide"));
+    }
+  }catch{}
   out.textContent=L.join("\n");
 }
 
@@ -1041,6 +1047,8 @@ function render(){
 }
 
 if("serviceWorker" in navigator)window.addEventListener("load",()=>navigator.serviceWorker.register("sw.js").catch(e=>{SWERR=String(e&&e.message||e);}));
+// Pede ao Chrome para não apagar os dados automaticamente (útil com pouco espaço)
+try{if(navigator.storage&&navigator.storage.persist)navigator.storage.persist();}catch{}
 loadStorage();
 // Resume an interrupted workout (e.g. after the browser reloaded the page)
 if(S.wk){
