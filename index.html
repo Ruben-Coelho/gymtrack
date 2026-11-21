@@ -242,7 +242,52 @@ function dataToolsHtml(){
       <button class="btn btn-out btn-sm" style="flex:1" onclick="document.getElementById('imp-file').click()">⬆ IMPORTAR</button>
     </div>
     <div style="font-size:11px;color:#444;margin-top:6px;line-height:1.5">Os dados ficam só neste browser. Exporta de vez em quando e usa Importar para repor ou mudar de telemóvel.</div>
+  </div>
+  <div class="section"><div class="lbl">Instalar como app</div>
+    <div style="display:flex;gap:8px">
+      ${DIP?`<button class="btn btn-acc btn-sm" style="flex:1" onclick="installApp()">⬇ INSTALAR APP</button>`:""}
+      <button class="btn btn-out btn-sm" style="flex:1" onclick="runDiag()">🔍 TESTAR INSTALAÇÃO</button>
+    </div>
+    <pre id="diag-out" style="font-family:Barlow,sans-serif;font-size:12px;color:#888;white-space:pre-wrap;line-height:1.6;margin-top:8px"></pre>
   </div>`;
+}
+
+// ── Instalação (PWA) ──────────────────────────────────────────
+let DIP=null,SWERR="";
+window.addEventListener("beforeinstallprompt",e=>{e.preventDefault();DIP=e;if(S.view==="history")render();});
+window.addEventListener("appinstalled",()=>{DIP=null;});
+async function installApp(){
+  if(!DIP)return;
+  DIP.prompt();
+  try{await DIP.userChoice;}catch{}
+  DIP=null;render();
+}
+async function runDiag(){
+  const out=document.getElementById("diag-out");
+  if(!out)return;
+  const L=[];
+  const ok=(b,t)=>L.push((b?"✅ ":"❌ ")+t);
+  ok(location.protocol==="https:","Endereço seguro (https)");
+  ok(matchMedia("(display-mode: standalone)").matches,"A correr como app instalada (se ❌, estás no browser)");
+  const link=document.querySelector('link[rel="manifest"]');
+  ok(!!link,"A página tem a ligação ao manifest");
+  try{
+    const r=await fetch("manifest.json",{cache:"no-store"});
+    ok(r.ok,"manifest.json acessível (código "+r.status+")");
+    const m=await r.json();
+    ok(!!(m.name&&m.start_url&&m.display),"Manifest com nome, start_url e display");
+    for(const ic of(m.icons||[])){
+      try{const ri=await fetch(ic.src,{cache:"no-store"});ok(ri.ok,"Ícone "+ic.src+" ("+ri.status+")");}
+      catch{ok(false,"Ícone "+ic.src+" não carrega");}
+    }
+  }catch(e){ok(false,"manifest.json falhou: "+e.message);}
+  if("serviceWorker" in navigator){
+    const regs=await navigator.serviceWorker.getRegistrations();
+    ok(regs.length>0,"Service worker registado"+(SWERR?" — erro: "+SWERR:""));
+    ok(!!navigator.serviceWorker.controller,"Service worker a controlar esta página (se ❌, recarrega 1 vez)");
+  }else ok(false,"Este browser não suporta service workers");
+  ok(!!DIP,"O Chrome considera a app instalável"+(DIP?" (aparece o botão INSTALAR APP)":" (ainda não avisou)"));
+  out.textContent=L.join("\n");
 }
 
 // ── Helpers ───────────────────────────────────────────────────
@@ -991,7 +1036,7 @@ function render(){
   paintRestBar();
 }
 
-if("serviceWorker" in navigator)window.addEventListener("load",()=>navigator.serviceWorker.register("sw.js").catch(()=>{}));
+if("serviceWorker" in navigator)window.addEventListener("load",()=>navigator.serviceWorker.register("sw.js").catch(e=>{SWERR=String(e&&e.message||e);}));
 loadStorage();
 // Resume an interrupted workout (e.g. after the browser reloaded the page)
 if(S.wk){
