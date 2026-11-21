@@ -15,7 +15,7 @@
 *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
 :root{--bg:#080808;--s1:#111;--s2:#181818;--bd:#222;--acc:#FF5500;--tx:#f0f0f0;--mu:#555;--ok:#00c853;}
 html,body{height:100%;background:var(--bg);color:var(--tx);font-family:'Barlow',sans-serif;overscroll-behavior-y:none;-webkit-user-select:none;user-select:none;}
-input,select,.msg{-webkit-user-select:text;user-select:text;}
+input,select,textarea,.msg{-webkit-user-select:text;user-select:text;}
 button,select,input{touch-action:manipulation;}
 #app{max-width:480px;margin:0 auto;min-height:100vh;min-height:100dvh;display:flex;flex-direction:column;background:var(--bg);}
 header{background:var(--bg);padding:calc(14px + env(safe-area-inset-top,0px)) 18px 12px;border-bottom:2px solid var(--acc);position:sticky;top:0;z-index:100;display:flex;justify-content:space-between;align-items:center;}
@@ -35,6 +35,17 @@ nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-w
 .btn-del{background:transparent;border:1px solid #c00;color:#c00;padding:7px 10px;font-family:'Barlow Condensed',sans-serif;font-size:12px;font-weight:700;letter-spacing:1px;cursor:pointer;}
 .btn-done{width:38px;height:38px;flex-shrink:0;border:1px solid var(--bd);background:transparent;color:var(--mu);font-size:18px;cursor:pointer;}
 .btn-done.on{background:var(--ok);border-color:var(--ok);color:#fff;}
+textarea{background:var(--s2);border:1px solid var(--bd);color:var(--tx);padding:10px;font-family:'Barlow',sans-serif;font-size:16px;width:100%;outline:none;border-radius:0;resize:none;-webkit-appearance:none;}
+textarea:focus{border-color:var(--acc);}
+.evt{display:inline-block;background:rgba(255,85,0,.12);border:1px solid #3a2010;color:var(--acc);font-family:'Barlow Condensed',sans-serif;font-size:12px;font-weight:700;letter-spacing:1px;padding:0 6px;margin:0 2px;cursor:pointer;}
+.ev-card{margin:10px 14px;background:var(--s1);border:1px solid var(--bd);padding:12px 14px;}
+.ev-lvl{font-size:12px;color:var(--acc);margin:6px 0;font-family:'Barlow Condensed',sans-serif;letter-spacing:1px;text-transform:uppercase;}
+.ev-p{font-size:13px;color:#aaa;line-height:1.55;margin-bottom:6px;}
+.ev-ref{font-size:11px;color:#666;line-height:1.5;margin-top:6px;word-break:break-word;}
+.ev-ref a{color:var(--acc);}
+.pf-q{margin-bottom:14px;}
+.warn-box{background:#1a1500;border:1px solid #3a3000;padding:8px 12px;font-size:12px;color:#aa8800;line-height:1.5;margin-bottom:8px;cursor:pointer;}
+input[type=date]{-webkit-appearance:auto;appearance:auto;color-scheme:dark;text-align:left;min-height:42px;}
 input,select{background:var(--s2);border:1px solid var(--bd);color:var(--tx);padding:10px;font-family:'Barlow',sans-serif;font-size:16px;width:100%;outline:none;border-radius:0;-webkit-appearance:none;}
 input:focus,select:focus{border-color:var(--acc);}
 input[type=number]{text-align:center;}
@@ -161,7 +172,7 @@ let S = {
   openEx:null,
   timerSec:0,
   progEx:"Bench Press",
-  chat:[{r:"a",c:"Olá! Sou o teu Coach IA, baseado nos princípios do Renaissance Periodization.\n\nPosso ajudar-te com:\n• Progressão de carga e volume\n• MEV, MAV, MRV e RIR\n• Periodização e deload\n• Técnica e selecção de exercícios\n\nPergunta à vontade! 💪"}],
+  chat:[{r:"a",c:"Olá! Sou o teu Coach IA. Respondo com base numa lista fechada de estudos (toca em 📚 Evidência para a ver), indico sempre o nível de evidência e os limites, e digo-te quando algo é só prática de treinadores.\n\nQuanto mais completo e atual o teu perfil, melhor adapto os conselhos. 💪"}],
   aiLoading:false,
   showKeyModal:false,
   edit:null,
@@ -193,7 +204,7 @@ function deleteApiKey(){localStorage.removeItem("gt_key");}
 
 // ── Backup: export / import ───────────────────────────────────
 function exportData(){
-  const data={app:"gymtrack",version:2,exported:new Date().toISOString(),history:S.history,config:{ex:EX,cx:CX,rr:(()=>{try{return JSON.parse(localStorage.getItem("gt_rr")||"{}");}catch{return{};}})()}};
+  const data={app:"gymtrack",version:2,exported:new Date().toISOString(),history:S.history,profile:PROF,weights:WEIGHTS,config:{ex:EX,cx:CX,rr:(()=>{try{return JSON.parse(localStorage.getItem("gt_rr")||"{}");}catch{return{};}})()}};
   const blob=new Blob([JSON.stringify(data,null,1)],{type:"application/json"});
   const url=URL.createObjectURL(blob);
   const a=document.createElement("a");
@@ -220,6 +231,8 @@ function importData(inp){
       if(!confirm(`Encontrados ${valid.length} treinos (${novos.length} novos). Juntar ao histórico atual?`))return;
       S.history=[...S.history,...novos].sort((a,b)=>a.date-b.date);
       saveHistory();
+      if(d&&Array.isArray(d.weights)){const have=new Set(WEIGHTS.map(w=>w.d));d.weights.filter(w=>w&&typeof w.d==="number"&&typeof w.kg==="number"&&!have.has(w.d)).forEach(w=>WEIGHTS.push({d:w.d,kg:w.kg}));WEIGHTS.sort((a,b)=>a.d-b.d);saveWeights();}
+      if(d&&d.profile&&typeof d.profile==="object"){for(const k in d.profile){const f=d.profile[k];if(!PROF[k]&&f&&typeof f.t==="number"&&typeof f.v==="string")PROF[k]={v:f.v,t:f.t};}saveProf();}
       const c=d&&d.config;
       if(c&&typeof c==="object"){
         if(c.cx&&typeof c.cx==="object"){for(const k in c.cx)if(!CX[k])CX[k]=c.cx[k];saveCX();}
@@ -457,7 +470,7 @@ function restBarHtml(){
     const pct=Math.max(0,Math.min(100,left/(w.restTotal||left)*100));
     return`<div class="rest-active"><div class="rest-fill" id="rest-fill" style="width:${pct}%"></div><div class="rest-row"><span class="rest-lbl">DESCANSO</span><span class="rest-disp" id="rest-disp">${fmtT(left)}</span><span><button class="rest-b" onclick="adjRest(-15)">−15</button><button class="rest-b" onclick="adjRest(15)">+15</button><button class="rest-b" onclick="skipRest()">SALTAR</button></span></div></div>`;
   }
-  return`<div class="rest-bar"><span class="rest-item">⏱ <b>Descanso:</b> ${REST_TIMES[w.day]}</span></div>`;
+  return`<div class="rest-bar"><span class="rest-item">⏱ <b>Descanso:</b> ${REST_TIMES[w.day]} ${evTag("E5")}</span></div>`;
 }
 function paintRestBar(){
   const el=document.getElementById("rest-wrap");
@@ -610,7 +623,7 @@ function volumeHtml(){
     const scale=Math.max(mrv*1.15,n);
     return`<div style="margin-bottom:11px"><div style="display:flex;justify-content:space-between;margin-bottom:4px"><span style="font-family:'Barlow Condensed';font-size:14px;font-weight:700">${m}</span><span style="font-family:'Barlow Condensed';font-size:14px;font-weight:700;color:${col}">${n} séries<span style="color:#555;font-weight:400"> · ref. ${mev}-${mrv}</span></span></div><div style="position:relative;height:8px;background:#181818"><div style="position:absolute;left:0;top:0;bottom:0;width:${(n/scale*100).toFixed(1)}%;background:${col}"></div><div style="position:absolute;top:-2px;bottom:-2px;left:${(mev/scale*100).toFixed(1)}%;width:1px;background:#888"></div><div style="position:absolute;top:-2px;bottom:-2px;left:${(mrv/scale*100).toFixed(1)}%;width:1px;background:#888"></div></div></div>`;
   }).join("");
-  return`<div class="section" style="padding-bottom:6px"><div class="lbl">SÉRIES POR MÚSCULO · ÚLTIMOS 7 DIAS</div>${rows}<div style="font-size:11px;color:#444;line-height:1.5;margin-bottom:8px">Conta as séries do músculo principal de cada exercício. As linhas marcam o mínimo e o máximo de referência (valores aproximados, estilo RP) — ajusta ao teu caso e à tua recuperação.</div></div>`;
+  return`<div class="section" style="padding-bottom:6px"><div class="lbl">SÉRIES POR MÚSCULO · ÚLTIMOS 7 DIAS ${evTag("E1","E10")}</div>${rows}<div style="font-size:11px;color:#444;line-height:1.5;margin-bottom:8px">Conta as séries do músculo principal de cada exercício. As linhas marcam o mínimo e o máximo de referência (valores aproximados, estilo RP) — ajusta ao teu caso e à tua recuperação.</div></div>`;
 }
 
 // ── Workout actions ───────────────────────────────────────────
@@ -717,8 +730,8 @@ async function sendChat(){
     const resp=await fetch("https://api.anthropic.com/v1/messages",{
       method:"POST",
       headers:{"Content-Type":"application/json","x-api-key":apiKey,"anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"},
-      body:JSON.stringify({model:COACH_MODEL,max_tokens:1000,
-        system:`És um treinador pessoal virtual especializado em hipertrofia, baseado nos princípios do Renaissance Periodization (RP). Dominas MEV, MAV, MRV, RIR, progressão dupla, deload e periodização. O utilizador faz Push/Pull/Legs e usa dupla progressão (faixa de reps por exercício, por defeito 6-10 em compostos e 10-15 em isolamento). Responde SEMPRE em português de Portugal. Sê conciso e prático.\n\nTreinos recentes:\n${recentData||"Sem treinos ainda."}`,
+      body:JSON.stringify({model:COACH_MODEL,max_tokens:1500,
+        system:buildCoachSystem(),
         messages:msgs})
     });
     const d=await resp.json();
@@ -743,7 +756,7 @@ function doDeleteKey(){deleteApiKey();render();}
 function closeModal(){S.showKeyModal=false;render();}
 
 // ── SVG Chart ─────────────────────────────────────────────────
-function svgChart(data,key,color){
+function svgChart(data,key,color,dec){
   if(!data.length)return"";
   const vals=data.map(d=>d[key]);
   const mn=Math.min(...vals)*0.95,mx=Math.max(...vals)*1.05||1;
@@ -754,7 +767,7 @@ function svgChart(data,key,color){
   const pts=data.map((d,i)=>`${x(i)},${y(d[key])}`).join(" ");
   const area=`${PL},${H-PB} `+data.map((d,i)=>`${x(i)},${y(d[key])}`).join(" ")+` ${x(data.length-1)},${H-PB}`;
   let yL="",grid="";
-  for(let i=0;i<=4;i++){const v=mn+(mx-mn)*i/4;const yp=y(v);yL+=`<text x="${PL-4}" y="${yp+4}" text-anchor="end" fill="#555" font-size="9">${Math.round(v)}</text>`;grid+=`<line x1="${PL}" y1="${yp}" x2="${W-PR}" y2="${yp}" stroke="#1a1a1a" stroke-dasharray="3"/>`;}
+  for(let i=0;i<=4;i++){const v=mn+(mx-mn)*i/4;const yp=y(v);yL+=`<text x="${PL-4}" y="${yp+4}" text-anchor="end" fill="#555" font-size="9">${dec?v.toFixed(1):Math.round(v)}</text>`;grid+=`<line x1="${PL}" y1="${yp}" x2="${W-PR}" y2="${yp}" stroke="#1a1a1a" stroke-dasharray="3"/>`;}
   let xL="";
   data.forEach((d,i)=>{if(i===0||i===data.length-1||data.length<=4)xL+=`<text x="${x(i)}" y="${H-4}" text-anchor="middle" fill="#555" font-size="9">${esc(d.date)}</text>`;});
   return`<svg viewBox="0 0 ${W} ${H}" class="chart">${grid}${yL}${xL}<polyline points="${area}" fill="${color}" fill-opacity="0.1" stroke="none"/><polyline points="${pts}" fill="none" stroke="${color}" stroke-width="2" stroke-linejoin="round"/>${data.map((d,i)=>`<circle cx="${x(i)}" cy="${y(d[key])}" r="4" fill="${color}"/>`).join("")}</svg>`;
@@ -776,7 +789,7 @@ function renderHome(){
     if(mx>mx2)prsHtml+=`<div style="background:#0a1a0a;border:1px solid #1a3a1a;padding:8px 12px;margin-bottom:6px;display:flex;justify-content:space-between"><span style="font-family:'Barlow Condensed';font-size:15px;font-weight:700">${esc(e.name)}</span><span style="font-family:'Barlow Condensed';font-size:15px;color:#00c853">${mx2}→${mx}kg</span></div>`;
   });}
   const dl=deloadStatus();
-  const deload=dl?`<div class="deload-banner"><div class="deload-title">⚠ HORA DO DELOAD?</div><div style="font-size:13px;color:#aa8800;line-height:1.5">${dl.reason} O RP recomenda uma semana de deload: cerca de metade das séries, cargas ligeiramente mais leves e RIR 4+. Fala com o Coach IA se tiveres dúvidas.</div><div style="display:flex;gap:8px;margin-top:10px"><button class="btn btn-out btn-sm" style="flex:1" onclick="startDeload()">INICIEI O DELOAD</button><button class="btn btn-out btn-sm" style="flex:1" onclick="snoozeDeload()">AGORA NÃO</button></div></div>`
+  const deload=dl?`<div class="deload-banner"><div class="deload-title">⚠ HORA DO DELOAD? ${evTag("E8")}</div><div style="font-size:13px;color:#aa8800;line-height:1.5">${dl.reason} O RP recomenda uma semana de deload: cerca de metade das séries, cargas ligeiramente mais leves e RIR 4+. Fala com o Coach IA se tiveres dúvidas.</div><div style="display:flex;gap:8px;margin-top:10px"><button class="btn btn-out btn-sm" style="flex:1" onclick="startDeload()">INICIEI O DELOAD</button><button class="btn btn-out btn-sm" style="flex:1" onclick="snoozeDeload()">AGORA NÃO</button></div></div>`
     :(inDeload()?`<div class="deload-banner"><div class="deload-title">SEMANA DE DELOAD</div><div style="font-size:13px;color:#aa8800;line-height:1.5">Esta semana: cerca de metade das séries, RIR 4+. As sugestões de carga ficam em modo deload.</div></div>`:"");
   const lastExp=parseInt(localStorage.getItem("gt_exp")||"0");
   const backupHint=(S.history.length>=3&&Date.now()-lastExp>14*864e5)
@@ -805,6 +818,7 @@ function renderHome(){
     </div>
     ${deload}
     ${backupHint}
+    ${profileBanner()}
     ${prsHtml?`<div class="section"><div class="lbl">🏆 Novos PRs</div>${prsHtml}</div>`:""}
     ${recentHtml}
     ${!S.history.length?`<div class="empty"><div style="font-size:44px;margin-bottom:10px">🏋️</div><div>Sem treinos ainda!</div><div style="font-size:13px;color:#444;margin-top:6px;font-family:Barlow;font-weight:400">Carrega em VER TREINO para começar</div></div>`:""}
@@ -839,7 +853,7 @@ function renderWorkoutPreview(){
       <div style="font-family:'Barlow Condensed';font-size:52px;font-weight:900;color:${DC[day]};line-height:1;text-transform:uppercase">${day}</div>
       <div style="font-size:12px;color:#555;margin:4px 0 6px">${EX[day].length} exercícios</div>
       <div style="font-size:12px;color:#666;background:#111;border:1px solid #1a1a1a;padding:8px 12px;margin:10px 0">
-        ⏱ <b style="color:#aaa">Descanso:</b> ${REST_TIMES[day]}
+        ⏱ <b style="color:#aaa">Descanso:</b> ${REST_TIMES[day]} ${evTag("E5")}
       </div>
       <button class="btn btn-acc" style="max-width:220px;font-size:16px;letter-spacing:3px" onclick="beginWorkout()">▶ INICIAR TREINO</button>
       <button class="btn btn-out" style="max-width:220px;margin-top:8px;font-size:13px;padding:9px" onclick="manageEx('${day}')">✎ EDITAR EXERCÍCIOS</button>
@@ -848,7 +862,7 @@ function renderWorkoutPreview(){
       </div>
     </div>
     <div style="padding:10px 0 4px">
-      <div style="padding:0 14px 6px"><div class="lbl">Exercícios de Hoje + Sugestões</div></div>
+      <div style="padding:0 14px 6px"><div class="lbl">Exercícios de Hoje + Sugestões ${evTag("E10","E2")}</div></div>
       ${exRows}
     </div>
   </div>`;
@@ -1009,7 +1023,274 @@ function renderProgress(){
       }).join("")}
     </div>`
   :`<div class="empty" style="padding-top:40px"><div>Sem dados suficientes</div><div style="font-size:13px;color:#444;margin-top:6px;font-family:Barlow;font-weight:400">Precisas de ≥2 sessões com ${esc(S.progEx)}</div></div>`;
-  return`<div>${volumeHtml()}<div class="section"><div class="lbl">PROGRESSO POR EXERCÍCIO</div><select onchange="S.progEx=this.value;render()">${opts}</select></div>${chartsHtml}</div>`;
+  return`<div>${weightHtml()}${volumeHtml()}<div class="section"><div class="lbl">PROGRESSO POR EXERCÍCIO</div><select onchange="S.progEx=this.value;render()">${opts}</select></div>${chartsHtml}</div>`;
+}
+
+// ── Perfil, peso corporal e base de evidência ─────────────────
+const EVIDENCE_DATE="21 nov 2026";
+const EV={
+E1:{t:"Mais séries por semana dão mais hipertrofia, com retornos decrescentes",lvl:"Moderada",
+ s:"Uma meta-regressão de 15 estudos encontrou uma relação gradual entre séries semanais e ganho de massa muscular: mais séries, mais hipertrofia. Num estudo com homens treinados, mais volume deu mais hipertrofia mas não mais força. Uma revisão posterior não encontrou diferença entre 12–20 e mais de 20 séries semanais para quadríceps e bíceps, mas no tríceps o volume alto foi melhor.",
+ lim:"Estudos curtos; as contagens de séries são pouco comparáveis; poucos estudos com volumes muito altos; as médias de grupo não dizem qual é o teu ponto ótimo nem a tua capacidade de recuperação.",
+ use:"Contagem de séries por músculo no separador Progresso. As linhas de referência (mínimo e máximo) são uma heurística [E10], não valores tirados destes estudos.",
+ refs:[
+  {c:"Schoenfeld BJ, Ogborn D, Krieger JW. Dose-response relationship between weekly resistance training volume and increases in muscle mass: a systematic review and meta-analysis. J Sports Sci 2017;35(11):1073-1082.",u:"https://pubmed.ncbi.nlm.nih.gov/27433992/"},
+  {c:"Schoenfeld BJ, Contreras B, Krieger J, et al. Resistance training volume enhances muscle hypertrophy but not strength in trained men. Med Sci Sports Exerc 2019;51(1):94-103.",u:"https://pubmed.ncbi.nlm.nih.gov/30153194/"},
+  {c:"A systematic review of the effects of different resistance training volumes on muscle hypertrophy. J Hum Kinet 2022;81:199-210.",u:"https://doi.org/10.2478/hukin-2022-0017"}]},
+E2:{t:"Treinar perto da falha ajuda a hipertrofia, mas não parece obrigatório chegar sempre à falha",lvl:"Moderada (resultados divergentes)",
+ s:"Uma meta-regressão (2024) concluiu que a hipertrofia melhora quanto mais perto da falha as séries terminam, enquanto o ganho de força é semelhante a várias distâncias da falha. Outra meta-análise (2023) não encontrou evidência de que treinar até à falha seja melhor do que parar antes, para hipertrofia. Leitura prática (interpretação minha, não conclusão dos autores): treinar perto da falha é sensato, mas não parece necessário levar todas as séries até à falha.",
+ lim:"O RIR é estimado pelo próprio praticante, com erro; os autores avisam que a relação exata é incerta e que a análise de 2024 é exploratória; as duas análises não concordam em tudo.",
+ use:"Registas o RIR em cada série e as sugestões de carga e reps têm-no em conta.",
+ refs:[
+  {c:"Robinson ZP, Pelland JC, Remmert JF, Refalo MC, Jukic I, Steele J, Zourdos MC. Exploring the dose-response relationship between estimated resistance training proximity to failure, strength gain, and muscle hypertrophy: a series of meta-regressions. Sports Med 2024;54(9).",u:"https://doi.org/10.1007/s40279-024-02069-2"},
+  {c:"Refalo MC, et al. Influence of resistance training proximity-to-failure on skeletal muscle hypertrophy: a systematic review with meta-analysis. Sports Med 2023;53(3):649-665.",u:"https://pubmed.ncbi.nlm.nih.gov/36334240/"}]},
+E3:{t:"A frequência por músculo importa menos do que o volume total",lvl:"Moderada",
+ s:"Em 2016, uma meta-análise concluiu que, com o volume igualado, treinar cada músculo 2 vezes por semana foi melhor do que 1; se 3 vezes seria melhor do que 2 ficou em aberto. Uma meta-análise de 2019, com mais estudos, não encontrou diferença significativa entre frequências quando o volume é igual. Leitura prática (interpretação minha): o que parece contar é o volume total semanal; distribuí-lo por 2 ou mais sessões é uma escolha razoável.",
+ lim:"Igualar volume e esforço entre grupos é difícil nos estudos; a conclusão é sobre médias de grupo.",
+ use:"Ciclo Push/Pull/Legs: repetir o ciclo duas vezes por semana dá 2 sessões por músculo; uma vez, dá 1.",
+ refs:[
+  {c:"Schoenfeld BJ, Ogborn D, Krieger JW. Effects of resistance training frequency on measures of muscle hypertrophy: a systematic review and meta-analysis. Sports Med 2016;46(11):1689-1697.",u:"https://pubmed.ncbi.nlm.nih.gov/27102172/"},
+  {c:"Schoenfeld BJ, Grgic J, Krieger J. How many times per week should a muscle be trained to maximize muscle hypertrophy? A systematic review and meta-analysis. J Sports Sci 2019;37(11):1286-1295.",u:"https://pubmed.ncbi.nlm.nih.gov/?term=How+many+times+per+week+should+a+muscle+be+trained+to+maximize+muscle+hypertrophy"}]},
+E4:{t:"A hipertrofia não depende de uma faixa de repetições única; a força máxima favorece cargas pesadas",lvl:"Moderada a forte",
+ s:"Uma meta-análise de 2017 concluiu que a força máxima beneficia de cargas pesadas, enquanto a hipertrofia pode ser alcançada de forma semelhante numa ampla gama de cargas.",
+ lim:"Não define uma faixa de repetições ideal; a conclusão é sobre a ausência de uma faixa única.",
+ use:"As faixas de reps da app (6–10 em compostos, 10–15 em isolamento) são uma convenção prática [E10]. Podes editá-las.",
+ refs:[
+  {c:"Schoenfeld BJ, Grgic J, Ogborn D, Krieger JW. Strength and hypertrophy adaptations between low- vs. high-load resistance training: a systematic review and meta-analysis. J Strength Cond Res 2017;31(12):3508-3523.",u:"https://pubmed.ncbi.nlm.nih.gov/28834797/"}]},
+E5:{t:"Descansos acima de cerca de 60–90 s: pouca diferença para a hipertrofia",lvl:"Limitada a moderada",
+ s:"Uma meta-análise Bayesiana de 9 estudos sugere um pequeno benefício de descansos acima de 60 s e não detetou diferenças apreciáveis acima de cerca de 90 s; os autores sugerem que o benefício vem de permitir mais carga total nas séries seguintes.",
+ lim:"Poucos estudos e muita heterogeneidade; não afirma qual é o melhor descanso acima de 90 s.",
+ use:"Os tempos sugeridos na app (compostos 2:30, isolamento 1:15; pernas 4:00 e 1:45) são prática [E10]. Acima de 90 s este estudo não mostrou vantagem extra para hipertrofia: podes encurtar se o tempo for um problema, mas vê se manténs as reps nas séries seguintes.",
+ refs:[
+  {c:"Singer A, Wolf M, Generoso L, et al. Give it a rest: a systematic review with Bayesian meta-analysis on the effect of inter-set rest interval duration on muscle hypertrophy. Front Sports Act Living 2024;6:1429789.",u:"https://pubmed.ncbi.nlm.nih.gov/39205815/"}]},
+E6:{t:"Proteína: cerca de 1,6 g por kg por dia é o ponto a partir do qual deixa de haver ganho adicional médio",lvl:"Moderada a forte",
+ s:"Uma meta-análise de 49 estudos (1863 participantes) mostrou que suplementar proteína durante o treino de força aumenta ligeiramente a massa magra e a força. Acima de cerca de 1,6 g de proteína por kg por dia, não houve ganho adicional de massa magra. Uma meta-análise de 2022 foi coerente: em adultos com menos de 65 anos que treinam força, ingestões de 1,6 g/kg/dia ou mais deram pequenos ganhos adicionais de massa magra.",
+ lim:"Efeitos pequenos; 1,6 g/kg/dia é um ponto de quebra estimado em média, não um limite pessoal; a maioria dos estudos testou suplementos; não cobre horários das refeições nem condições médicas.",
+ use:"Referência que o Coach usa para comparar com a tua ingestão (questionário).",
+ refs:[
+  {c:"Morton RW, Murphy KT, McKellar SR, et al. A systematic review, meta-analysis and meta-regression of the effect of protein supplementation on resistance training-induced gains in muscle mass and strength in healthy adults. Br J Sports Med 2018;52(6):376-384.",u:"https://pubmed.ncbi.nlm.nih.gov/28698222/"},
+  {c:"Nunes EA, et al. Systematic review and meta-analysis of protein intake to support muscle mass and function in healthy adults. J Cachexia Sarcopenia Muscle 2022;13(2):795-810.",u:"https://pubmed.ncbi.nlm.nih.gov/35187864/"}]},
+E7:{t:"Amplitude completa é a escolha por defeito; parciais em comprimento longo são promissoras mas incertas",lvl:"Limitada a moderada",
+ s:"Uma meta-análise de 2021 concluiu que a amplitude completa foi melhor para a força e para a hipertrofia dos membros inferiores. Outra, de 2023, encontrou uma diferença global trivial a favor da amplitude completa, com indícios de que parciais em comprimento muscular longo podem dar hipertrofia igual ou maior (com grande incerteza). Uma revisão sistemática sugere considerar parciais na parte inicial do movimento em combinação com amplitude completa.",
+ lim:"Poucos estudos por músculo; intervalos de confiança largos; os resultados diferem entre membros superiores e inferiores.",
+ use:"A app não prescreve amplitude; o Coach usa isto para perguntas de técnica.",
+ refs:[
+  {c:"Pallarés JG, et al. Effects of range of motion on resistance training adaptations: a systematic review and meta-analysis. Scand J Med Sci Sports 2021;31(10):1866-1881.",u:"https://pubmed.ncbi.nlm.nih.gov/34170576/"},
+  {c:"Wolf M, Androulakis-Korakakis P, Fisher J, Schoenfeld B, Steele J. Partial vs full range of motion resistance training: a systematic review and meta-analysis. Int J Strength Cond 2023;3(1).",u:"https://doi.org/10.47206/ijsc.v3i1.182"},
+  {c:"Kassiano W, Costa B, Nunes JP, Ribeiro AS, Schoenfeld BJ, Cyrino ES. Which ROMs lead to Rome? A systematic review of the effects of range of motion on muscle hypertrophy. J Strength Cond Res 2023;37(5):1135-1144.",u:"https://pubmed.ncbi.nlm.nih.gov/36662126/"}]},
+E8:{t:"Deload: prática comum a cada 4–6 semanas, sustentada por consenso de especialistas",lvl:"Opinião de especialistas",
+ s:"Um consenso Delphi de treinadores especialistas definiu deload como um período de menor stress de treino para reduzir a fadiga e preparar o treino seguinte. É descrito como prática habitual a cada 4–6 semanas, durante cerca de 7 dias, reduzindo séries e/ou repetições por série.",
+ lim:"É opinião de especialistas, não um ensaio: os próprios autores descrevem o deload como pouco investigado; não há prova de que melhore os resultados.",
+ use:"A app sugere deload ao fim de 6 semanas sem pausa, ou antes se 3 ou mais exercícios deixarem de melhorar (critério da app [E10]). Podes ignorar o aviso.",
+ refs:[
+  {c:"Bell L, Strafford BW, Coleman M, Androulakis Korakakis P, Nolan D. Integrating deloading into strength and physique sports training programmes: an international Delphi consensus approach. Sports Med Open 2023;9:87.",u:"https://pubmed.ncbi.nlm.nih.gov/37730925/"}]},
+E9:{t:"Perder cerca de 0,7% do peso por semana preservou melhor a massa magra do que 1,4%",lvl:"Limitada",
+ s:"Num ensaio com 24 atletas de elite a fazer treino de força, perder 0,7% do peso por semana permitiu aumentar a massa magra e a força de 1RM; perder 1,4% por semana não. Aos 12 meses, os grupos já não diferiam.",
+ lim:"Um só ensaio pequeno, em atletas de elite e durante poucas semanas; não diz se o resultado se aplica a ti, nem o que fazer fora de um défice calórico.",
+ use:"Tendência de peso no separador Progresso. Para ganhar peso (superávit) esta base não tem um ritmo de referência.",
+ refs:[
+  {c:"Garthe I, Raastad T, Refsnes PE, Koivisto A, Sundgot-Borgen J. Effect of two different weight-loss rates on body composition and strength and power-related performance in elite athletes. Int J Sport Nutr Exerc Metab 2011;21(2):97-104.",u:"https://pubmed.ncbi.nlm.nih.gov/21558571/"},
+  {c:"Garthe I, Raastad T, Sundgot-Borgen J. Long-term effect of weight loss on body composition and performance in elite athletes. Int J Sport Nutr Exerc Metab 2011;21(5):426-435.",u:"https://pubmed.ncbi.nlm.nih.gov/21896944/"}]},
+E10:{t:"Regras da app que são prática de treinadores, sem estudo direto",lvl:"Prática, sem estudo direto",
+ s:"A dupla progressão (subir a carga quando chegas ao topo da faixa de reps), a escala de RIR para regular o esforço, as referências de volume (mínimo e máximo por músculo), os incrementos de +2,5/+5 kg e o critério de estagnação do deload são regras de treinadores (por exemplo, do método Renaissance Periodization). Nenhuma das fontes desta base as valida diretamente.",
+ lim:"São úteis para decidir de forma consistente, mas podem não ser ótimas para ti. Trata-as como ponto de partida e ajusta com a tua resposta.",
+ use:"Sugestões de carga e reps, linhas de referência de volume e aviso de deload.",refs:[]}
+};
+function evTag(...ids){return ids.map(id=>`<span class="evt" onclick="openEv('${id}')">ⓘ ${id}</span>`).join("");}
+function evLink(h){
+  return h.replace(/\[(E\d+(?:\s*[,;]\s*E\d+)*)\]/g,(m0,list)=>list.split(/\s*[,;]\s*/).map(id=>EV[id]?evTag(id):id).join(" "));
+}
+
+let PROF={},WEIGHTS=[];
+function loadProfile(){
+  try{PROF=JSON.parse(localStorage.getItem("gt_prof")||"{}")||{};}catch{PROF={};}
+  try{WEIGHTS=JSON.parse(localStorage.getItem("gt_w")||"[]")||[];}catch{WEIGHTS=[];}
+}
+function saveProf(){try{localStorage.setItem("gt_prof",JSON.stringify(PROF));}catch{}}
+function saveWeights(){try{localStorage.setItem("gt_w",JSON.stringify(WEIGHTS));}catch{}}
+function agoTxt(t){
+  const d=Math.floor((Date.now()-t)/864e5);
+  if(d<1)return"hoje";if(d<14)return d+" dias";if(d<60)return Math.round(d/7)+" semanas";return Math.round(d/30)+" meses";
+}
+
+// age = dias até a resposta ser considerada desatualizada
+const PQ=[
+ {k:"objetivo",l:"Objetivo principal",t:"sel",o:["Ganhar massa muscular","Recomposição corporal","Perder gordura mantendo músculo","Ganhar força"],req:1,age:84},
+ {k:"fase",l:"Fase atual da alimentação",t:"sel",o:["A ganhar peso (superávit)","Manutenção","A perder peso (défice)","Não sei"],req:1,age:56},
+ {k:"experiencia",l:"Experiência de treino de força consistente",t:"sel",o:["Menos de 1 ano","1 a 3 anos","3 a 5 anos","Mais de 5 anos"],req:1,age:365},
+ {k:"dias",l:"Dias de treino por semana",t:"sel",o:["2 a 3","4","5","6"],req:1,age:84},
+ {k:"duracao",l:"Duração típica de uma sessão (minutos)",t:"num",age:84},
+ {k:"lesoes",l:"Lesões, dores ou limitações (escreve nenhuma se não tiveres)",t:"ta",req:1,age:56},
+ {k:"prioridade",l:"Músculos que queres priorizar (opcional)",t:"txt",age:84},
+ {k:"proteina",l:"Proteína diária aproximada (g por kg de peso)",t:"sel",o:["Não sei","Menos de 1,2","1,2 a 1,6","1,6 a 2,2","Mais de 2,2"],age:84},
+ {k:"sono",l:"Sono médio por noite",t:"sel",o:["Menos de 6 h","6 a 7 h","7 a 8 h","Mais de 8 h"],age:84},
+ {k:"idade",l:"Idade (anos)",t:"num",req:1,age:365},
+ {k:"altura",l:"Altura (cm)",t:"num",req:1,age:3650},
+ {k:"sexo",l:"Sexo biológico",t:"sel",o:["Masculino","Feminino","Prefiro não dizer"],req:1,age:36500}
+];
+function profStatus(){
+  const now=Date.now(),miss=[],stale=[];
+  PQ.forEach(q=>{
+    const f=PROF[q.k];
+    if(!f||f.v===""){if(q.req)miss.push(q.l);}
+    else if(now-f.t>q.age*864e5)stale.push(q.l);
+  });
+  return{miss,stale};
+}
+function openProfile(){if(S.view!=="profile")S.prevView=S.view;S.view="profile";render();window.scrollTo(0,0);}
+function profBack(){localStorage.setItem("gt_pskip","1");S.view=(S.prevView&&S.prevView!=="profile"&&S.prevView!=="evidence")?S.prevView:"coach";render();window.scrollTo(0,0);}
+function saveProfile(){
+  const now=Date.now();
+  PQ.forEach(q=>{
+    const el=document.getElementById("pf-"+q.k);
+    if(!el)return;
+    const v=el.value.trim();
+    if(v==="")delete PROF[q.k];else PROF[q.k]={v,t:now};
+  });
+  saveProf();profBack();
+}
+function renderProfile(){
+  const rows=PQ.map(q=>{
+    const f=PROF[q.k],v=f?f.v:"";
+    const old=f&&Date.now()-f.t>q.age*864e5;
+    const when=f?`<span style="color:${old?"#ffab00":"#555"}">${old?"⚠ por rever · ":""}respondido há ${agoTxt(f.t)}</span>`:`<span style="color:#555">por responder${q.req?"":" (opcional)"}</span>`;
+    let inp;
+    if(q.t==="sel")inp=`<select id="pf-${q.k}"><option value="">—</option>${q.o.map(o=>`<option${o===v?" selected":""}>${esc(o)}</option>`).join("")}</select>`;
+    else if(q.t==="ta")inp=`<textarea id="pf-${q.k}" rows="2">${esc(v)}</textarea>`;
+    else inp=`<input id="pf-${q.k}" type="${q.t==="num"?"number":"text"}"${q.t==="num"?' inputmode="decimal"':""} value="${esc(v)}"/>`;
+    return`<div class="pf-q"><div class="lbl" style="margin-bottom:4px">${q.l}</div>${inp}<div style="font-size:11px;margin-top:3px">${when}</div></div>`;
+  }).join("");
+  return`<div class="section"><div class="lbl" style="color:var(--acc)">O TEU PERFIL</div>
+    <div style="font-size:12px;color:#777;line-height:1.6;margin-bottom:14px">O Coach usa estas respostas para adaptar os conselhos. Ao guardar, confirmas que estão atuais. As respostas ficam só neste telemóvel, mas quando falas com o Coach o perfil é enviado à Anthropic (através da tua API key) para personalizar a resposta; não escrevas aqui o que não queiras partilhar. O peso regista-se no separador Progresso.</div>
+    ${rows}
+    <button class="btn btn-acc" onclick="saveProfile()">GUARDAR</button>
+    <button class="btn btn-out" style="margin-top:8px" onclick="profBack()">AGORA NÃO</button>
+    <div style="height:20px"></div></div>`;
+}
+
+function openEv(id){
+  if(S.view!=="evidence")S.prevView=S.view;
+  S.evFocus=id||null;S.view="evidence";render();
+  setTimeout(()=>{const el=id&&document.getElementById("ev-"+id);if(el)el.scrollIntoView({block:"start"});else window.scrollTo(0,0);},30);
+}
+function evBack(){S.view=(S.prevView&&S.prevView!=="evidence")?S.prevView:"coach";render();window.scrollTo(0,0);}
+function renderEvidence(){
+  const cards=Object.keys(EV).map(id=>{
+    const e=EV[id];
+    const refs=e.refs.map(r=>`<div class="ev-ref">${r.c} <a href="${r.u}" target="_blank" rel="noopener">abrir</a></div>`).join("");
+    return`<div class="ev-card" id="ev-${id}"${S.evFocus===id?' style="border-color:var(--acc)"':""}>
+      <div style="display:flex;gap:8px;align-items:baseline"><span class="evt" style="cursor:default">${id}</span><span class="ex-name" style="font-size:16px">${e.t}</span></div>
+      <div class="ev-lvl">Nível: ${e.lvl}</div>
+      <div class="ev-p"><b>O que mostram:</b> ${e.s}</div>
+      <div class="ev-p"><b>Limites:</b> ${e.lim}</div>
+      <div class="ev-p"><b>Na app:</b> ${e.use}</div>${refs}</div>`;
+  }).join("");
+  return`<div><div class="section"><button class="btn btn-out btn-sm" onclick="evBack()">← VOLTAR</button>
+    <div class="lbl" style="margin-top:14px;color:var(--acc)">BASE DE EVIDÊNCIA</div>
+    <div style="font-size:12px;color:#777;line-height:1.6">Esta é a lista fechada de estudos em que as sugestões da app e o Coach se baseiam. As referências foram confirmadas em PubMed e DOI em ${EVIDENCE_DATE}. Quando vês ⓘ E# em algum sítio, a explicação está aqui. Os níveis são uma classificação minha, pelo tipo de estudo e pela coerência dos resultados, e não uma classificação oficial. Se um estudo novo mudar as conclusões, esta lista tem de ser atualizada; o Coach não consulta a internet.</div></div>${cards}<div style="height:20px"></div></div>`;
+}
+
+// ── Peso corporal ─────────────────────────────────────────────
+function weightTrend(){
+  const now=Date.now(),D=864e5;
+  const avg=(a,b)=>{const x=WEIGHTS.filter(w=>w.d>now-a*D&&w.d<=now-b*D);return x.length?x.reduce((q,w)=>q+w.kg,0)/x.length:null;};
+  const cur=avg(7,0),prev=avg(14,7);
+  if(cur==null||prev==null)return null;
+  return{cur,prev,pct:(cur-prev)/prev*100};
+}
+function addWeight(){
+  const el=document.getElementById("w-in");
+  const kg=parseFloat(String(el?el.value:"").replace(",","."));
+  if(!(kg>25&&kg<300)){alert("Introduz um peso válido em kg.");return;}
+  const day=new Date().toDateString();
+  WEIGHTS=WEIGHTS.filter(w=>new Date(w.d).toDateString()!==day);
+  WEIGHTS.push({d:Date.now(),kg:Math.round(kg*10)/10});
+  WEIGHTS.sort((a,b)=>a.d-b.d);
+  saveWeights();render();
+}
+function delWeight(d){
+  if(!confirm("Apagar este registo de peso?"))return;
+  WEIGHTS=WEIGHTS.filter(w=>w.d!==d);saveWeights();render();
+}
+function weightHtml(){
+  const W=[...WEIGHTS].sort((a,b)=>a.d-b.d);
+  const tr=weightTrend();
+  let info="";
+  if(tr){
+    const fase=(PROF.fase&&PROF.fase.v)||"";
+    let note="";
+    if(/perder/.test(fase)){
+      if(tr.pct<-1.0)note=`Estás a perder mais depressa do que cerca de 1% por semana. No estudo, o ritmo de 1,4% foi pior para a massa magra do que 0,7% ${evTag("E9")}`;
+      else if(tr.pct<=-0.3)note=`Ritmo próximo do mais lento do estudo (0,7% por semana) ${evTag("E9")}`;
+      else note=`Quase sem variação; com poucas semanas de dados, uma variação pequena pode ser ruído.`;
+    }else if(/ganhar peso/.test(fase))note=`Esta base não tem um ritmo de referência para ganhar peso, por isso não o avalio ${evTag("E9")}`;
+    info=`<div style="font-size:13px;line-height:1.6;margin-top:8px">Média dos últimos 7 dias: <b>${tr.cur.toFixed(1)} kg</b> · variação semanal: <b>${tr.pct>0?"+":""}${tr.pct.toFixed(2)}%</b>${note?`<div style="font-size:12px;color:#aaa;margin-top:4px">${note}</div>`:""}</div>`;
+  }else if(W.length)info=`<div style="font-size:12px;color:#555;margin-top:8px">A tendência semanal precisa de registos em duas semanas seguidas.</div>`;
+  const chart=W.length>=2?svgChart(W.slice(-30).map(w=>({date:fmt(w.d),kg:w.kg})),"kg","#7c7cff",1):"";
+  const list=[...W].reverse().slice(0,5).map(w=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid #181818"><span style="font-size:12px;color:#666">${fmt(w.d)}</span><span style="display:flex;gap:10px;align-items:center"><b style="font-family:'Barlow Condensed';font-size:15px">${w.kg} kg</b><button class="btn-del" style="padding:3px 7px" onclick="delWeight(${w.d})">✕</button></span></div>`).join("");
+  return`<div class="section"><div class="lbl">PESO CORPORAL ${evTag("E9")}</div>
+    <div style="display:flex;gap:8px"><input id="w-in" type="number" inputmode="decimal" step="0.1" placeholder="kg de hoje" style="flex:1"/><button class="btn btn-acc btn-sm" onclick="addWeight()">REGISTAR</button></div>
+    ${info}${chart}${list}</div>`;
+}
+
+// ── Avisos no Início ──────────────────────────────────────────
+function profileBanner(){
+  const st=profStatus();let h="";
+  if(st.miss.length)h+=`<div class="section"><div class="warn-box" style="background:#0a180a;border-color:#1a3a1a;color:#3a8a3a" onclick="openProfile()">🧠 Completa o teu perfil (2 min) para o Coach adaptar os conselhos a ti. Toca aqui.</div></div>`;
+  else if(st.stale.length)h+=`<div class="section"><div class="warn-box" onclick="openProfile()">⚠ ${st.stale.length} resposta(s) do perfil para rever: ${st.stale.slice(0,3).join(", ")}${st.stale.length>3?"…":""}. Toca aqui.</div></div>`;
+  const lw=WEIGHTS.length?Math.max(...WEIGHTS.map(w=>w.d)):0;
+  if(Date.now()-lw>7*864e5)h+=`<div class="section"><div class="warn-box" onclick="nav('progress')">⚖ ${lw?"Último peso registado há "+agoTxt(lw):"Ainda não registaste o teu peso"}. Toca para registar.</div></div>`;
+  return h;
+}
+function coachBar(){
+  const st=profStatus();
+  const msg=st.miss.length?`Perfil incompleto (${st.miss.length} por responder)`:st.stale.length?`${st.stale.length} resposta(s) por rever`:"Perfil em dia ✓";
+  const col=(st.miss.length||st.stale.length)?"#ffab00":"#00c853";
+  return`<div style="padding:0 14px 6px;display:flex;gap:6px;align-items:center"><span style="flex:1;font-size:12px;color:${col}">${msg}</span><button class="btn btn-out btn-sm" style="padding:6px 10px;font-size:11px" onclick="openProfile()">QUESTIONÁRIO</button><button class="btn btn-out btn-sm" style="padding:6px 10px;font-size:11px" onclick="openEv()">📚 EVIDÊNCIA</button></div>`;
+}
+
+// ── Prompt do Coach: regras de evidência + base + dados do utilizador ──
+function buildCoachSystem(){
+  const ev=Object.keys(EV).map(id=>{const e=EV[id];return`[${id}] ${e.t}. Nível: ${e.lvl}. ${e.s} Limites: ${e.lim} Uso na app: ${e.use}`;}).join("\n");
+  const pf=PQ.map(q=>{
+    const f=PROF[q.k];
+    if(!f)return`- ${q.l}: (não respondido)`;
+    const old=Date.now()-f.t>q.age*864e5;
+    return`- ${q.l}: ${f.v} (respondido há ${agoTxt(f.t)}${old?"; DESATUALIZADO, pede ao utilizador para rever":""})`;
+  }).join("\n");
+  const W=[...WEIGHTS].sort((a,b)=>a.d-b.d),tr=weightTrend();
+  const wt=W.length?`Últimos registos: ${W.slice(-6).map(w=>`${new Date(w.d).toLocaleDateString("pt-PT")} ${w.kg}kg`).join("; ")}.${tr?` Média 7 dias ${tr.cur.toFixed(1)}kg, variação semanal ${tr.pct.toFixed(2)}%.`:" Sem dados suficientes para tendência semanal."}`:"Sem registos de peso.";
+  const recent=S.history.slice(-6).map(w=>`${w.day} (${new Date(w.date).toLocaleDateString("pt-PT")}): `+w.exercises.map(e=>`${e.name}[${e.sets.map(x=>`${x.w}kg×${x.r}@${x.rir}RIR`).join(",")}]`).join(" | ")).join("\n");
+  return`És o Coach IA de uma app pessoal de treino de hipertrofia (Push/Pull/Legs). O utilizador quer poder confiar no que dizes sem ter de ir verificar: por isso não dás opiniões soltas. Hoje é ${new Date().toLocaleDateString("pt-PT")}.
+
+REGRAS DE EVIDÊNCIA (obrigatórias)
+1. A tua única fonte de afirmações científicas é a BASE DE EVIDÊNCIA abaixo. Quando usares uma conclusão dela, cita o código entre parênteses retos, por exemplo [E1] ou [E2][E3], e diz o nível de evidência (Forte, Moderada, Limitada, Opinião de especialistas, Prática).
+2. Nunca inventes nem cites estudos, autores, anos, números ou percentagens que não estejam na base. Não tens acesso à internet.
+3. Se a pergunta ultrapassar a base (por exemplo horário das refeições, suplementos, exercícios específicos, lesões, ritmo de ganho de peso), diz claramente "isto está fora da base de evidência". Se mesmo assim ajudares, rotula como prática comum ou opinião, sem apresentar como facto.
+4. Em cada recomendação dá: (a) a decisão concreta; (b) o porquê, em 1 a 3 frases, com o que mostram os estudos e o código; (c) os limites ou incertezas relevantes. As meta-análises são médias de grupos: diz quando algo pode não se aplicar ao utilizador.
+5. Distingue sempre "evidência" (estudos), "regra da app ou prática" ([E10]) e "a minha interpretação".
+6. Usa o perfil, o peso e os treinos para adaptar a decisão. Se faltar um dado importante ou estiver DESATUALIZADO, pede-o ou sugere abrir o Questionário no separador Coach.
+7. Dor, lesão, sintomas, doenças, perturbações alimentares ou défices calóricos extremos: não diagnostiques nem prescrevas; aconselha falar com um profissional de saúde.
+8. Responde em português de Portugal, em texto simples (sem markdown, sem asteriscos, sem cabeçalhos com #), de forma concisa e direta.
+9. Se o utilizador discordar com base noutra fonte (por exemplo um vídeo), não cedas só para agradar: compara com a base, diz o que ela sustenta e o que não sustenta, e que não podes verificar o que não está na base.
+
+REGRAS DA APP (para explicares porque é que a app sugere algo; são prática [E10], salvo indicação)
+- Dupla progressão: cada exercício tem uma faixa de reps (por defeito 6-10 em compostos e 10-15 em isolamento). Mantém a carga e sobe reps; ao chegar ao topo da faixa em todas as séries, sobe a carga (+2,5 kg, ou +5 kg em exercícios grandes de pernas) e volta ao início da faixa.
+- Descanso sugerido: compostos 2:30 e isolamento 1:15; em pernas 4:00 e 1:45 [E5].
+- Deload sugerido ao fim de 6 semanas sem pausa, ou a partir de 3,5 semanas se 3 ou mais exercícios deixarem de melhorar [E8].
+- Referências de séries por músculo (mínimo e máximo) são heurísticas [E1][E10].
+
+BASE DE EVIDÊNCIA
+${ev}
+
+PERFIL DO UTILIZADOR
+${pf}
+
+PESO CORPORAL
+${wt}
+
+TREINOS RECENTES
+${recent||"Sem treinos ainda."}`;
 }
 
 // ── Render: Coach ─────────────────────────────────────────────
@@ -1018,12 +1299,12 @@ function renderCoach(){
   const keySection=apiKey
     ?`<div class="key-ok"><span>✓ API Key configurada</span><button onclick="doDeleteKey()" style="background:none;border:none;color:#c00;font-family:'Barlow Condensed';font-size:12px;font-weight:700;cursor:pointer;letter-spacing:1px">REMOVER</button></div>`
     :`<div class="tip-box"><b>⚠ Coach IA desactivado</b> — Clica em ENVIAR para configurar a tua API key da Anthropic.</div>`;
-  const msgs=S.chat.map(m=>`<div style="align-self:${m.r==="u"?"flex-end":"flex-start"};display:flex;flex-direction:column;align-items:${m.r==="u"?"flex-end":"flex-start"};max-width:88%">${m.r==="a"?`<div style="font-size:10px;color:#FF5500;font-family:'Barlow Condensed';font-weight:700;letter-spacing:2px;margin-bottom:3px">COACH IA</div>`:""}<div class="msg msg-${m.r==="u"?"user":"ai"}">${esc(m.c)}</div></div>`).join("");
+  const msgs=S.chat.map(m=>`<div style="align-self:${m.r==="u"?"flex-end":"flex-start"};display:flex;flex-direction:column;align-items:${m.r==="u"?"flex-end":"flex-start"};max-width:88%">${m.r==="a"?`<div style="font-size:10px;color:#FF5500;font-family:'Barlow Condensed';font-weight:700;letter-spacing:2px;margin-bottom:3px">COACH IA</div>`:""}<div class="msg msg-${m.r==="u"?"user":"ai"}">${m.r==="a"?evLink(esc(m.c)):esc(m.c)}</div></div>`).join("");
   const thinking=S.aiLoading?`<div style="align-self:flex-start;padding:10px 14px;background:#111;border:1px solid #1a1a1a;color:#FF5500;font-family:'Barlow Condensed';font-size:14px;letter-spacing:2px">A PENSAR...</div>`:"";
   const modal=S.showKeyModal?`<div class="modal-bg" onclick="if(event.target===this)closeModal()"><div class="modal"><h2>API KEY · ANTHROPIC</h2><p>Para usar o Coach IA precisas de uma API key da Anthropic. A API é paga por utilização (cada mensagem custa uns cêntimos) e é separada da subscrição do Claude.<br/><br/>1. Vai a <a href="https://console.anthropic.com" target="_blank">console.anthropic.com</a><br/>2. Cria conta e adiciona crédito em <b>Billing</b><br/>3. <b>API Keys</b> → <b>Create Key</b><br/>4. Cola aqui em baixo<br/><br/><span style="color:#FF5500">A key fica guardada só no teu dispositivo.</span></p><input id="key-input" placeholder="sk-ant-..." style="margin-bottom:10px"/><button class="btn btn-acc" onclick="saveKey()">GUARDAR KEY</button><button class="btn btn-out" style="margin-top:8px" onclick="closeModal()">CANCELAR</button></div></div>`:"";
   const _hd=document.querySelector("header"),_nv=document.getElementById("nav");
   const h=window.innerHeight-(_hd?_hd.offsetHeight:60)-(_nv?_nv.offsetHeight:64);
-  return`<div class="chat-outer" style="height:${h}px"><div style="padding:10px 14px 6px">${keySection}</div><div class="chat-msgs" id="chat-msgs" style="flex:1">${msgs}${thinking}<div id="chat-end"></div></div><div class="chat-bar"><input class="inp" id="chat-input" placeholder="${apiKey?"Pergunta ao teu coach...":"Configura a API key primeiro..."}" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendChat();}" style="flex:1"/><button onclick="sendChat()" style="background:${!S.aiLoading?'#FF5500':'#2a2a2a'};border:none;color:#fff;padding:10px 14px;font-family:'Barlow Condensed';font-size:14px;font-weight:700;letter-spacing:1px;text-transform:uppercase;cursor:pointer;flex-shrink:0">ENVIAR</button></div>${modal}</div>`;
+  return`<div class="chat-outer" style="height:${h}px"><div style="padding:10px 14px 6px">${keySection}</div>${coachBar()}<div class="chat-msgs" id="chat-msgs" style="flex:1">${msgs}${thinking}<div id="chat-end"></div></div><div class="chat-bar"><input class="inp" id="chat-input" placeholder="${apiKey?"Pergunta ao teu coach...":"Configura a API key primeiro..."}" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendChat();}" style="flex:1"/><button onclick="sendChat()" style="background:${!S.aiLoading?'#FF5500':'#2a2a2a'};border:none;color:#fff;padding:10px 14px;font-family:'Barlow Condensed';font-size:14px;font-weight:700;letter-spacing:1px;text-transform:uppercase;cursor:pointer;flex-shrink:0">ENVIAR</button></div>${modal}</div>`;
 }
 
 // ── Main Render ───────────────────────────────────────────────
@@ -1036,11 +1317,14 @@ function render(){
     case"workout":  ct.innerHTML=renderWorkout();break;
     case"history":  ct.innerHTML=renderHistory();break;
     case"progress": ct.innerHTML=renderProgress();break;
+    case"profile":  ct.innerHTML=renderProfile();break;
+    case"evidence": ct.innerHTML=renderEvidence();break;
     case"coach":    ct.innerHTML=renderCoach();
       setTimeout(()=>{const m=document.getElementById("chat-end");if(m)m.scrollIntoView();},10);
       break;
   }
-  document.querySelectorAll(".nb").forEach(b=>b.classList.toggle("on",b.dataset.view===S.view));
+  const _nv2=(S.view==="profile"||S.view==="evidence")?"coach":S.view;
+  document.querySelectorAll(".nb").forEach(b=>b.classList.toggle("on",b.dataset.view===_nv2));
   const hd=document.querySelector("header");
   if(hd)document.documentElement.style.setProperty("--hh",hd.offsetHeight+"px");
   paintRestBar();
@@ -1049,6 +1333,7 @@ function render(){
 if("serviceWorker" in navigator)window.addEventListener("load",()=>navigator.serviceWorker.register("sw.js").catch(e=>{SWERR=String(e&&e.message||e);}));
 // Pede ao Chrome para não apagar os dados automaticamente (útil com pouco espaço)
 try{if(navigator.storage&&navigator.storage.persist)navigator.storage.persist();}catch{}
+loadProfile();
 loadStorage();
 // Resume an interrupted workout (e.g. after the browser reloaded the page)
 if(S.wk){
@@ -1062,6 +1347,7 @@ if(S.wk){
   const q=new URLSearchParams(location.search).get("v");
   if(q==="workout"){if(!S.wk)S.wkDay=getNextDay();S.view="workout";}
   else if(["home","history","progress","coach"].includes(q))S.view=q;
+  else if(!S.wk&&!Object.keys(PROF).length&&!localStorage.getItem("gt_pskip"))S.view="profile";
 })();
 render();
 </script>
