@@ -2,7 +2,7 @@
 <html lang="pt">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
+<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="theme-color" content="#080808">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -14,15 +14,17 @@
 @import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@700;900&family=Barlow:wght@400;600&display=swap');
 *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
 :root{--bg:#080808;--s1:#111;--s2:#181818;--bd:#222;--acc:#FF5500;--tx:#f0f0f0;--mu:#555;--ok:#00c853;}
-html,body{height:100%;background:var(--bg);color:var(--tx);font-family:'Barlow',sans-serif;}
-#app{max-width:480px;margin:0 auto;min-height:100vh;display:flex;flex-direction:column;background:var(--bg);}
-header{background:var(--bg);padding:14px 18px 12px;border-bottom:2px solid var(--acc);position:sticky;top:0;z-index:100;display:flex;justify-content:space-between;align-items:center;}
+html,body{height:100%;background:var(--bg);color:var(--tx);font-family:'Barlow',sans-serif;overscroll-behavior-y:none;-webkit-user-select:none;user-select:none;}
+input,select,.msg{-webkit-user-select:text;user-select:text;}
+button,select,input{touch-action:manipulation;}
+#app{max-width:480px;margin:0 auto;min-height:100vh;min-height:100dvh;display:flex;flex-direction:column;background:var(--bg);}
+header{background:var(--bg);padding:calc(14px + env(safe-area-inset-top,0px)) 18px 12px;border-bottom:2px solid var(--acc);position:sticky;top:0;z-index:100;display:flex;justify-content:space-between;align-items:center;}
 .logo{font-family:'Barlow Condensed',sans-serif;font-size:26px;font-weight:900;letter-spacing:2px;text-transform:uppercase;}
 .logo span{color:var(--acc);}
 .active-badge{font-family:'Barlow Condensed',sans-serif;font-size:14px;font-weight:700;color:var(--acc);letter-spacing:2px;display:none;}
-#content{flex:1;overflow-y:auto;padding-bottom:72px;}
-nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:480px;background:var(--s1);border-top:2px solid var(--bd);display:flex;z-index:100;}
-.nb{flex:1;padding:10px 4px;border:none;background:none;color:var(--mu);font-family:'Barlow Condensed',sans-serif;font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:3px;}
+#content{flex:1;overflow-y:auto;padding-bottom:calc(84px + env(safe-area-inset-bottom,0px));}
+nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:480px;background:var(--s1);border-top:2px solid var(--bd);display:flex;z-index:100;padding-bottom:env(safe-area-inset-bottom,0px);}
+.nb{flex:1;padding:12px 4px 10px;border:none;background:none;color:var(--mu);font-family:'Barlow Condensed',sans-serif;font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:3px;}
 .nb.on{color:var(--acc);}
 .nb svg{width:22px;height:22px;display:block;}
 .btn{display:block;width:100%;padding:13px;border:none;font-family:'Barlow Condensed',sans-serif;font-size:15px;font-weight:700;letter-spacing:2px;text-transform:uppercase;cursor:pointer;}
@@ -472,6 +474,7 @@ function markSet(name,id){
   const s=ex&&ex.sets.find(s=>s.id==id);
   if(!s)return;
   s.done=!s.done;
+  try{if(navigator.vibrate)navigator.vibrate(s.done?25:10);}catch{}
   const b=document.getElementById("done-"+id);
   if(b)b.classList.toggle("on",!!s.done);
   document.querySelectorAll(".sinp-"+id).forEach(i=>i.classList.toggle("pre",!!(s.pre&&!s.done)));
@@ -1012,7 +1015,8 @@ function renderCoach(){
   const msgs=S.chat.map(m=>`<div style="align-self:${m.r==="u"?"flex-end":"flex-start"};display:flex;flex-direction:column;align-items:${m.r==="u"?"flex-end":"flex-start"};max-width:88%">${m.r==="a"?`<div style="font-size:10px;color:#FF5500;font-family:'Barlow Condensed';font-weight:700;letter-spacing:2px;margin-bottom:3px">COACH IA</div>`:""}<div class="msg msg-${m.r==="u"?"user":"ai"}">${esc(m.c)}</div></div>`).join("");
   const thinking=S.aiLoading?`<div style="align-self:flex-start;padding:10px 14px;background:#111;border:1px solid #1a1a1a;color:#FF5500;font-family:'Barlow Condensed';font-size:14px;letter-spacing:2px">A PENSAR...</div>`:"";
   const modal=S.showKeyModal?`<div class="modal-bg" onclick="if(event.target===this)closeModal()"><div class="modal"><h2>API KEY · ANTHROPIC</h2><p>Para usar o Coach IA precisas de uma API key da Anthropic. A API é paga por utilização (cada mensagem custa uns cêntimos) e é separada da subscrição do Claude.<br/><br/>1. Vai a <a href="https://console.anthropic.com" target="_blank">console.anthropic.com</a><br/>2. Cria conta e adiciona crédito em <b>Billing</b><br/>3. <b>API Keys</b> → <b>Create Key</b><br/>4. Cola aqui em baixo<br/><br/><span style="color:#FF5500">A key fica guardada só no teu dispositivo.</span></p><input id="key-input" placeholder="sk-ant-..." style="margin-bottom:10px"/><button class="btn btn-acc" onclick="saveKey()">GUARDAR KEY</button><button class="btn btn-out" style="margin-top:8px" onclick="closeModal()">CANCELAR</button></div></div>`:"";
-  const h=window.innerHeight-140;
+  const _hd=document.querySelector("header"),_nv=document.getElementById("nav");
+  const h=window.innerHeight-(_hd?_hd.offsetHeight:60)-(_nv?_nv.offsetHeight:64);
   return`<div class="chat-outer" style="height:${h}px"><div style="padding:10px 14px 6px">${keySection}</div><div class="chat-msgs" id="chat-msgs" style="flex:1">${msgs}${thinking}<div id="chat-end"></div></div><div class="chat-bar"><input class="inp" id="chat-input" placeholder="${apiKey?"Pergunta ao teu coach...":"Configura a API key primeiro..."}" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendChat();}" style="flex:1"/><button onclick="sendChat()" style="background:${!S.aiLoading?'#FF5500':'#2a2a2a'};border:none;color:#fff;padding:10px 14px;font-family:'Barlow Condensed';font-size:14px;font-weight:700;letter-spacing:1px;text-transform:uppercase;cursor:pointer;flex-shrink:0">ENVIAR</button></div>${modal}</div>`;
 }
 
@@ -1045,6 +1049,12 @@ if(S.wk){
   startTimer();
   keepAwake();
 }
+// Atalhos do ícone (manifest "shortcuts"): ?v=workout, ?v=history, ...
+(function(){
+  const q=new URLSearchParams(location.search).get("v");
+  if(q==="workout"){if(!S.wk)S.wkDay=getNextDay();S.view="workout";}
+  else if(["home","history","progress","coach"].includes(q))S.view=q;
+})();
 render();
 </script>
 </body>
