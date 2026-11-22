@@ -44,6 +44,21 @@ textarea:focus{border-color:var(--acc);}
 .ev-ref{font-size:11px;color:#666;line-height:1.5;margin-top:6px;word-break:break-word;}
 .ev-ref a{color:var(--acc);}
 .pf-q{margin-bottom:14px;}
+.deck{position:relative;margin:14px 14px 34px;}
+.qcard{position:relative;z-index:2;background:#171717;border:1px solid #2a2a2a;border-top:3px solid var(--acc);padding:16px;animation:cardIn .28s ease-out;}
+.qback{position:absolute;left:0;right:0;top:0;bottom:0;background:#121212;border:1px solid #222;}
+.qback.b1{transform:translateY(8px) scale(.96);opacity:.85;z-index:1;}
+.qback.b2{transform:translateY(16px) scale(.92);opacity:.55;z-index:0;}
+.qtxt{font-family:'Barlow Condensed',sans-serif;font-size:26px;font-weight:900;line-height:1.15;text-transform:uppercase;letter-spacing:1px;margin:16px 0 6px;}
+.qh{font-size:12px;color:#888;margin-bottom:12px;line-height:1.5;}
+.qcur{font-size:12px;color:#aaa;margin:8px 0 12px;line-height:1.5;}
+.opt{display:block;width:100%;text-align:left;padding:15px 14px;margin-bottom:8px;background:#222;border:1px solid #2f2f2f;color:var(--tx);font-family:'Barlow',sans-serif;font-size:16px;cursor:pointer;}
+.opt.cur{border-color:#555;}
+.opt.on{background:var(--acc);border-color:var(--acc);color:#fff;}
+.pbar{height:3px;background:#2a2a2a;}
+.pbar i{display:block;height:100%;background:var(--acc);}
+.qlink{background:none;border:none;color:#888;font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:700;letter-spacing:1px;cursor:pointer;padding:8px 4px;text-transform:uppercase;}
+@keyframes cardIn{from{opacity:0;transform:translateX(36px) rotate(2deg)}to{opacity:1;transform:none}}
 .warn-box{background:#1a1500;border:1px solid #3a3000;padding:8px 12px;font-size:12px;color:#aa8800;line-height:1.5;margin-bottom:8px;cursor:pointer;}
 input[type=date]{-webkit-appearance:auto;appearance:auto;color-scheme:dark;text-align:left;min-height:42px;}
 input,select{background:var(--s2);border:1px solid var(--bd);color:var(--tx);padding:10px;font-family:'Barlow',sans-serif;font-size:16px;width:100%;outline:none;border-radius:0;-webkit-appearance:none;}
@@ -161,7 +176,9 @@ const REST_TIMES = {
 const DC = {Push:"#FF5500",Pull:"#00c853",Legs:"#7c7cff"};
 const DB = {Push:"rgba(255,85,0,.12)",Pull:"rgba(0,200,83,.12)",Legs:"rgba(124,124,255,.12)"};
 const RIR = [0,1,2,3,4];
-const COACH_MODEL = "claude-sonnet-5-5"; // alternativa mais barata: "claude-haiku-5-5"
+const GEM_BASE="https://generativelanguage.googleapis.com/v1beta/";
+const GEM_DEFAULT_MODEL="gemini-3.5-flash"; // confirma o nome em Coach > chave > Testar ligação
+let GEM_LIST=[];
 
 // ── State ─────────────────────────────────────────────────────
 let S = {
@@ -198,9 +215,10 @@ function saveWk(){
     else localStorage.removeItem("gt_wk");
   }catch{}
 }
-function getApiKey(){return localStorage.getItem("gt_key")||"";}
-function saveApiKey(k){localStorage.setItem("gt_key",k);}
-function deleteApiKey(){localStorage.removeItem("gt_key");}
+function getApiKey(){return localStorage.getItem("gt_gkey")||"";}
+function saveApiKey(k){localStorage.setItem("gt_gkey",k);}
+function deleteApiKey(){localStorage.removeItem("gt_gkey");}
+function getGModel(){return localStorage.getItem("gt_gmodel")||GEM_DEFAULT_MODEL;}
 
 // ── Backup: export / import ───────────────────────────────────
 function exportData(){
@@ -714,6 +732,63 @@ function discardWorkout(){
 }
 
 // ── Coach ─────────────────────────────────────────────────────
+// ── Fornecedor do Coach: Google Gemini (única função que fala com o modelo) ──
+async function callModel(system,msgs){
+  const key=getApiKey();
+  const contents=[];
+  msgs.forEach(m=>{
+    const role=m.role==="assistant"?"model":"user";
+    if(contents.length&&contents[contents.length-1].role===role)contents[contents.length-1].parts[0].text+="\n\n"+m.content;
+    else contents.push({role,parts:[{text:m.content}]});
+  });
+  const body={system_instruction:{parts:[{text:system}]},contents,generationConfig:{temperature:0.2,maxOutputTokens:4096}};
+  const ctl=new AbortController(),to=setTimeout(()=>ctl.abort(),60000);
+  let r,d;
+  try{
+    r=await fetch(GEM_BASE+"models/"+encodeURIComponent(getGModel())+":generateContent",{method:"POST",headers:{"Content-Type":"application/json","x-goog-api-key":key},body:JSON.stringify(body),signal:ctl.signal});
+    d=await r.json();
+  }catch(e){
+    if(e&&e.name==="AbortError")throw new Error("O Gemini demorou demasiado a responder. Tenta de novo.");
+    throw new Error("Não consegui contactar o Gemini (ligação ou bloqueio do browser).");
+  }finally{clearTimeout(to);}
+  if(!r.ok||d.error){
+    const code=(d.error&&d.error.code)||r.status,msg=(d.error&&d.error.message)||"";
+    if(code===429)throw new Error("Limite do nível gratuito atingido. Espera um pouco e tenta de novo.");
+    if(code===400&&/api key/i.test(msg))throw new Error("Chave inválida. Confirma-a no AI Studio.");
+    if(code===403)throw new Error("Chave sem permissão ou região não suportada. "+msg);
+    if(code===404)throw new Error("Modelo não encontrado ("+getGModel()+"). Abre a chave no Coach e usa Testar ligação para escolher outro.");
+    throw new Error(msg||("Erro "+code));
+  }
+  const c=d.candidates&&d.candidates[0];
+  if(!c){
+    const br=d.promptFeedback&&d.promptFeedback.blockReason;
+    throw new Error(br?"Pedido bloqueado pelo Gemini ("+br+"). Reformula a pergunta.":"Sem resposta do Gemini.");
+  }
+  const txt=((c.content&&c.content.parts)||[]).map(p=>p.text||"").join("").trim();
+  if(!txt)throw new Error(c.finishReason&&c.finishReason!=="STOP"?"Resposta interrompida ("+c.finishReason+"). Reformula a pergunta.":"Resposta vazia do Gemini.");
+  return txt;
+}
+// O chat mostra texto simples: remove markdown que o modelo possa gerar
+function cleanReply(t){
+  return t.replace(/\*\*([\s\S]+?)\*\*/g,"$1").replace(/__([\s\S]+?)__/g,"$1").replace(/^#{1,6}\s*/gm,"").replace(/^\s*[*•]\s+/gm,"- ").replace(/\(E(\d{1,2})\)/g,"[E$1]").trim();
+}
+async function testGemini(){
+  const out=document.getElementById("model-list");if(!out)return;
+  const key=((document.getElementById("key-input")||{}).value||"").trim()||getApiKey();
+  if(!key){out.textContent="Cola primeiro a chave.";return;}
+  out.textContent="A testar...";
+  try{
+    const r=await fetch(GEM_BASE+"models?pageSize=100",{headers:{"x-goog-api-key":key}});
+    const d=await r.json();
+    if(!r.ok)throw new Error((d.error&&d.error.message)||("HTTP "+r.status));
+    const ms=(d.models||[]).filter(m=>/gemini/i.test(m.name)&&(m.supportedGenerationMethods||[]).includes("generateContent")).map(m=>m.name.replace(/^models\//,""));
+    ms.sort((a,b)=>(/flash/.test(b)-/flash/.test(a))||a.localeCompare(b));
+    GEM_LIST=ms.slice(0,14);
+    out.innerHTML=GEM_LIST.length?"Ligação OK. Toca num modelo para o escolher:<br>"+GEM_LIST.map((m,i)=>`<button class="rest-b" style="margin:4px 4px 0 0" onclick="pickModel(${i})">${esc(m)}</button>`).join(""):"Ligação OK, mas não encontrei modelos Gemini disponíveis.";
+  }catch(e){out.textContent="Falhou: "+e.message;}
+}
+function pickModel(i){const el=document.getElementById("model-input");if(el&&GEM_LIST[i])el.value=GEM_LIST[i];}
+
 async function sendChat(){
   const input=document.getElementById("chat-input");
   const msg=input?input.value.trim():"";
@@ -724,31 +799,23 @@ async function sendChat(){
   S.chat.push({r:"u",c:msg});
   S.aiLoading=true;
   render();
-  const recentData=S.history.slice(-6).map(w=>`${w.day}(${new Date(w.date).toLocaleDateString("pt-PT")}): `+w.exercises.map(e=>`${e.name}[${e.sets.map(s=>`${s.w}kg×${s.r}@${s.rir}RIR`).join(",")}]`).join(" | ")).join("\n");
   try{
-    const msgs=S.chat.slice(1).map(m=>({role:m.r==="u"?"user":"assistant",content:m.c}));
-    const resp=await fetch("https://api.anthropic.com/v1/messages",{
-      method:"POST",
-      headers:{"Content-Type":"application/json","x-api-key":apiKey,"anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"},
-      body:JSON.stringify({model:COACH_MODEL,max_tokens:1500,
-        system:buildCoachSystem(),
-        messages:msgs})
-    });
-    const d=await resp.json();
-    if(d.error)throw new Error(d.error.message);
-    const t=d.content?.find(b=>b.type==="text")?.text||"Sem resposta.";
-    S.chat.push({r:"a",c:t});
+    const msgs=S.chat.slice(1).filter(m=>!m.e).map(m=>({role:m.r==="u"?"user":"assistant",content:m.c}));
+    const t=await callModel(buildCoachSystem(),msgs);
+    S.chat.push({r:"a",c:cleanReply(t)});
   }catch(err){
-    S.chat.push({r:"a",c:"Erro: "+(err.message||"Verifica a tua API key.")});
+    S.chat.push({r:"a",e:true,c:"Erro: "+(err.message||"Não consegui contactar o Gemini.")});
   }
   S.aiLoading=false;
   render();
   setTimeout(()=>{const m=document.getElementById("chat-end");if(m)m.scrollIntoView({behavior:"smooth"});},50);
 }
 function saveKey(){
-  const v=document.getElementById("key-input")?.value?.trim();
-  if(!v)return;
-  saveApiKey(v);
+  const k=((document.getElementById("key-input")||{}).value||"").trim();
+  const m=((document.getElementById("model-input")||{}).value||"").trim();
+  if(k)saveApiKey(k);
+  if(m)localStorage.setItem("gt_gmodel",m);
+  if(!getApiKey()){alert("Cola a chave do Gemini.");return;}
   S.showKeyModal=false;
   render();
 }
@@ -1115,57 +1182,89 @@ function agoTxt(t){
 
 // age = dias até a resposta ser considerada desatualizada
 const PQ=[
- {k:"objetivo",l:"Objetivo principal",t:"sel",o:["Ganhar massa muscular","Recomposição corporal","Perder gordura mantendo músculo","Ganhar força"],req:1,age:84},
- {k:"fase",l:"Fase atual da alimentação",t:"sel",o:["A ganhar peso (superávit)","Manutenção","A perder peso (défice)","Não sei"],req:1,age:56},
- {k:"experiencia",l:"Experiência de treino de força consistente",t:"sel",o:["Menos de 1 ano","1 a 3 anos","3 a 5 anos","Mais de 5 anos"],req:1,age:365},
- {k:"dias",l:"Dias de treino por semana",t:"sel",o:["2 a 3","4","5","6"],req:1,age:84},
- {k:"duracao",l:"Duração típica de uma sessão (minutos)",t:"num",age:84},
- {k:"lesoes",l:"Lesões, dores ou limitações (escreve nenhuma se não tiveres)",t:"ta",req:1,age:56},
- {k:"prioridade",l:"Músculos que queres priorizar (opcional)",t:"txt",age:84},
- {k:"proteina",l:"Proteína diária aproximada (g por kg de peso)",t:"sel",o:["Não sei","Menos de 1,2","1,2 a 1,6","1,6 a 2,2","Mais de 2,2"],age:84},
- {k:"sono",l:"Sono médio por noite",t:"sel",o:["Menos de 6 h","6 a 7 h","7 a 8 h","Mais de 8 h"],age:84},
- {k:"idade",l:"Idade (anos)",t:"num",req:1,age:365},
- {k:"altura",l:"Altura (cm)",t:"num",req:1,age:3650},
- {k:"sexo",l:"Sexo biológico",t:"sel",o:["Masculino","Feminino","Prefiro não dizer"],req:1,age:36500}
+ {k:"objetivo",s:"Objetivo principal",l:"Qual é o teu objetivo principal?",t:"sel",o:["Ganhar massa muscular","Recomposição corporal","Perder gordura mantendo músculo","Ganhar força"],req:1,age:84},
+ {k:"fase",s:"Fase da alimentação",l:"Em que fase está a tua alimentação?",t:"sel",o:["A ganhar peso (superávit)","Manutenção","A perder peso (défice)","Não sei"],req:1,age:56,h:"Superávit é comer mais do que gastas; défice é comer menos."},
+ {k:"experiencia",s:"Experiência de treino",l:"Há quanto tempo treinas força de forma consistente?",t:"sel",o:["Menos de 1 ano","1 a 3 anos","3 a 5 anos","Mais de 5 anos"],req:1,age:365},
+ {k:"dias",s:"Dias de treino por semana",l:"Quantos dias por semana treinas?",t:"sel",o:["2 a 3","4","5","6"],req:1,age:84},
+ {k:"lesoes",s:"Lesões ou limitações",l:"Tens lesões, dores ou limitações?",t:"ta",req:1,age:56,quick:"Nenhuma",h:"Se tiveres, escreve o local e o que te limita."},
+ {k:"proteina",s:"Proteína diária (g/kg)",l:"Quanta proteína comes por dia, mais ou menos? (g por kg)",t:"sel",o:["Não sei","Menos de 1,2","1,2 a 1,6","1,6 a 2,2","Mais de 2,2"],age:84},
+ {k:"sono",s:"Sono médio",l:"Quanto dormes por noite, em média?",t:"sel",o:["Menos de 6 h","6 a 7 h","7 a 8 h","Mais de 8 h"],age:84},
+ {k:"prioridade",s:"Músculos prioritários",l:"Há músculos que queiras priorizar?",t:"txt",ph:"ex: ombros e costas",age:84},
+ {k:"duracao",s:"Duração da sessão (min)",l:"Quanto dura uma sessão típica?",t:"num",ph:"minutos",age:84},
+ {k:"idade",s:"Idade",l:"Idade (opcional)",t:"num",ph:"anos",age:365},
+ {k:"altura",s:"Altura (cm)",l:"Altura (opcional)",t:"num",ph:"cm",age:3650},
+ {k:"sexo",s:"Sexo biológico",l:"Sexo biológico (opcional)",t:"sel",o:["Masculino","Feminino","Prefiro não dizer"],age:36500}
 ];
 function profStatus(){
   const now=Date.now(),miss=[],stale=[];
   PQ.forEach(q=>{
     const f=PROF[q.k];
-    if(!f||f.v===""){if(q.req)miss.push(q.l);}
-    else if(now-f.t>q.age*864e5)stale.push(q.l);
+    if(!f||f.v===""){if(q.req)miss.push(q.s||q.l);}
+    else if(now-f.t>q.age*864e5)stale.push(q.s||q.l);
   });
   return{miss,stale};
 }
-function openProfile(){if(S.view!=="profile")S.prevView=S.view;S.view="profile";render();window.scrollTo(0,0);}
-function profBack(){localStorage.setItem("gt_pskip","1");S.view=(S.prevView&&S.prevView!=="profile"&&S.prevView!=="evidence")?S.prevView:"coach";render();window.scrollTo(0,0);}
-function saveProfile(){
+function initCards(full){
   const now=Date.now();
-  PQ.forEach(q=>{
-    const el=document.getElementById("pf-"+q.k);
-    if(!el)return;
-    const v=el.value.trim();
-    if(v==="")delete PROF[q.k];else PROF[q.k]={v,t:now};
-  });
-  saveProf();profBack();
+  let keys=PQ.filter(q=>{const f=PROF[q.k];return !f||f.v===""||now-f.t>q.age*864e5;}).map(q=>q.k);
+  if(full)keys=PQ.map(q=>q.k);
+  S.cards={keys,i:0};
 }
+function openProfile(full){
+  if(S.view!=="profile")S.prevView=S.view;
+  initCards(full);S.view="profile";render();window.scrollTo(0,0);focusCard();
+}
+function profBack(){
+  localStorage.setItem("gt_pskip","1");S.cards=null;
+  S.view=(S.prevView&&S.prevView!=="profile"&&S.prevView!=="evidence"&&S.prevView!=="analysis")?S.prevView:"coach";
+  render();window.scrollTo(0,0);
+}
+function curQ(){return PQ.find(x=>x.k===S.cards.keys[S.cards.i]);}
+function focusCard(){setTimeout(()=>{const e=document.getElementById("cd-in");if(e)e.focus();},300);}
+function cardAdvance(){S.cards.i++;render();window.scrollTo(0,0);focusCard();}
+function cardSet(v){const q=curQ();PROF[q.k]={v,t:Date.now()};saveProf();}
+function cardOpt(i){
+  const q=curQ();cardSet(q.o[i]);
+  const el=document.getElementById("opt-"+i);if(el)el.classList.add("on");
+  setTimeout(cardAdvance,170);
+}
+function cardText(){
+  const q=curQ(),el=document.getElementById("cd-in"),v=el?el.value.trim():"";
+  if(!v)return;
+  if(q.t==="num"&&!(parseFloat(v)>0))return;
+  cardSet(v);cardAdvance();
+}
+function cardQuick(){cardSet(curQ().quick.toLowerCase());cardAdvance();}
+function cardKeep(){const f=PROF[curQ().k];if(f){f.t=Date.now();saveProf();}cardAdvance();}
+function cardSkip(){cardAdvance();}
+function cardPrev(){if(S.cards.i>0){S.cards.i--;render();window.scrollTo(0,0);focusCard();}}
 function renderProfile(){
-  const rows=PQ.map(q=>{
-    const f=PROF[q.k],v=f?f.v:"";
-    const old=f&&Date.now()-f.t>q.age*864e5;
-    const when=f?`<span style="color:${old?"#ffab00":"#555"}">${old?"⚠ por rever · ":""}respondido há ${agoTxt(f.t)}</span>`:`<span style="color:#555">por responder${q.req?"":" (opcional)"}</span>`;
-    let inp;
-    if(q.t==="sel")inp=`<select id="pf-${q.k}"><option value="">—</option>${q.o.map(o=>`<option${o===v?" selected":""}>${esc(o)}</option>`).join("")}</select>`;
-    else if(q.t==="ta")inp=`<textarea id="pf-${q.k}" rows="2">${esc(v)}</textarea>`;
-    else inp=`<input id="pf-${q.k}" type="${q.t==="num"?"number":"text"}"${q.t==="num"?' inputmode="decimal"':""} value="${esc(v)}"/>`;
-    return`<div class="pf-q"><div class="lbl" style="margin-bottom:4px">${q.l}</div>${inp}<div style="font-size:11px;margin-top:3px">${when}</div></div>`;
-  }).join("");
-  return`<div class="section"><div class="lbl" style="color:var(--acc)">O TEU PERFIL</div>
-    <div style="font-size:12px;color:#777;line-height:1.6;margin-bottom:14px">O Coach usa estas respostas para adaptar os conselhos. Ao guardar, confirmas que estão atuais. As respostas ficam só neste telemóvel, mas quando falas com o Coach o perfil é enviado à Anthropic (através da tua API key) para personalizar a resposta; não escrevas aqui o que não queiras partilhar. O peso regista-se no separador Progresso.</div>
-    ${rows}
-    <button class="btn btn-acc" onclick="saveProfile()">GUARDAR</button>
-    <button class="btn btn-out" style="margin-top:8px" onclick="profBack()">AGORA NÃO</button>
-    <div style="height:20px"></div></div>`;
+  if(!S.cards)initCards(false);
+  const C=S.cards,total=C.keys.length;
+  const note=`<div style="font-size:11px;color:#555;line-height:1.5;padding:0 14px 20px">As respostas ficam só neste telemóvel. Quando falas com o Coach, o perfil é enviado à Google (Gemini) para personalizar a resposta; não respondas ao que não queiras partilhar. O peso regista-se no separador Progresso.</div>`;
+  if(C.i>=total){
+    const st=profStatus();
+    return`<div class="deck"><div class="qcard"><div class="qtxt" style="margin-top:4px">${total?"Feito ✓":"Perfil em dia ✓"}</div>
+      <div class="qh">${st.miss.length?`Ainda faltam respostas importantes: ${esc(st.miss.join(", "))}.`:"O Coach já tem o que precisa para adaptar os conselhos."}</div>
+      <button class="btn btn-acc" onclick="profBack()">FECHAR</button>
+      <button class="btn btn-out" style="margin-top:8px" onclick="openProfile(true)">REVER TODAS AS RESPOSTAS</button></div></div>${note}`;
+  }
+  const q=curQ(),f=PROF[q.k],has=f&&f.v!=="",rem=total-C.i-1;
+  const backs=(rem>=2?'<div class="qback b2"></div>':'')+(rem>=1?'<div class="qback b1"></div>':'');
+  let body="";
+  if(has)body+=`<div class="qcur">Resposta atual: <b>${esc(f.v)}</b> · há ${agoTxt(f.t)}</div><button class="btn btn-ok" style="margin-bottom:12px" onclick="cardKeep()">✓ CONTINUA IGUAL</button><div class="lbl" style="margin-bottom:8px">${q.t==="sel"?"Ou escolhe outra":"Ou escreve outra"}</div>`;
+  if(q.t==="sel")body+=q.o.map((o,i)=>`<button class="opt${has&&f.v===o?" cur":""}" id="opt-${i}" onclick="cardOpt(${i})">${esc(o)}</button>`).join("");
+  else{
+    body+=q.t==="ta"?`<textarea id="cd-in" rows="3" placeholder="${esc(q.ph||"")}"></textarea>`:`<input id="cd-in" type="${q.t==="num"?"number":"text"}"${q.t==="num"?' inputmode="decimal"':""} placeholder="${esc(q.ph||"")}" onkeydown="if(event.key==='Enter'){event.preventDefault();cardText();}"/>`;
+    body+=`<div style="display:flex;gap:8px;margin-top:10px">${q.quick?`<button class="btn btn-out" style="flex:1" onclick="cardQuick()">${esc(q.quick.toUpperCase())}</button>`:""}<button class="btn btn-acc" style="flex:1" onclick="cardText()">SEGUINTE</button></div>`;
+  }
+  return`<div class="deck">${backs}<div class="qcard" id="qcard">
+    <div style="display:flex;justify-content:space-between;align-items:center"><span class="lbl" style="margin:0">${C.i+1} / ${total}</span><button class="qlink" onclick="profBack()">✕ FECHAR</button></div>
+    <div class="pbar" style="margin-top:8px"><i style="width:${Math.round((C.i)/total*100)}%"></i></div>
+    <div class="qtxt">${esc(q.l)}</div>${q.h?`<div class="qh">${esc(q.h)}</div>`:'<div style="height:8px"></div>'}
+    ${body}
+    <div style="display:flex;justify-content:space-between;margin-top:6px">${C.i>0?'<button class="qlink" onclick="cardPrev()">← ANTERIOR</button>':'<span></span>'}<button class="qlink" onclick="cardSkip()">SALTAR →</button></div>
+  </div></div>${C.i===0?note:""}`;
 }
 
 function openEv(id){
@@ -1236,8 +1335,8 @@ function weightHtml(){
 // ── Avisos no Início ──────────────────────────────────────────
 function profileBanner(){
   const st=profStatus();let h="";
-  if(st.miss.length)h+=`<div class="section"><div class="warn-box" style="background:#0a180a;border-color:#1a3a1a;color:#3a8a3a" onclick="openProfile()">🧠 Completa o teu perfil (2 min) para o Coach adaptar os conselhos a ti. Toca aqui.</div></div>`;
-  else if(st.stale.length)h+=`<div class="section"><div class="warn-box" onclick="openProfile()">⚠ ${st.stale.length} resposta(s) do perfil para rever: ${st.stale.slice(0,3).join(", ")}${st.stale.length>3?"…":""}. Toca aqui.</div></div>`;
+  if(st.miss.length)h+=`<div class="section"><div class="warn-box" style="background:#0a180a;border-color:#1a3a1a;color:#3a8a3a" onclick="openProfile()">🧠 Responde a uns cartões rápidos (1 min) para o Coach adaptar os conselhos a ti. Toca aqui.</div></div>`;
+  else if(st.stale.length)h+=`<div class="section"><div class="warn-box" onclick="openProfile()">⚠ ${st.stale.length} cartão(ões) do perfil para rever: ${st.stale.slice(0,3).join(", ")}${st.stale.length>3?"…":""}. Toca aqui.</div></div>`;
   const lw=WEIGHTS.length?Math.max(...WEIGHTS.map(w=>w.d)):0;
   if(Date.now()-lw>7*864e5)h+=`<div class="section"><div class="warn-box" onclick="nav('progress')">⚖ ${lw?"Último peso registado há "+agoTxt(lw):"Ainda não registaste o teu peso"}. Toca para registar.</div></div>`;
   return h;
@@ -1246,17 +1345,92 @@ function coachBar(){
   const st=profStatus();
   const msg=st.miss.length?`Perfil incompleto (${st.miss.length} por responder)`:st.stale.length?`${st.stale.length} resposta(s) por rever`:"Perfil em dia ✓";
   const col=(st.miss.length||st.stale.length)?"#ffab00":"#00c853";
-  return`<div style="padding:0 14px 6px;display:flex;gap:6px;align-items:center"><span style="flex:1;font-size:12px;color:${col}">${msg}</span><button class="btn btn-out btn-sm" style="padding:6px 10px;font-size:11px" onclick="openProfile()">QUESTIONÁRIO</button><button class="btn btn-out btn-sm" style="padding:6px 10px;font-size:11px" onclick="openEv()">📚 EVIDÊNCIA</button></div>`;
+  const b=(f,t)=>`<button class="btn btn-out btn-sm" style="flex:1;padding:6px 4px;font-size:11px" onclick="${f}">${t}</button>`;
+  return`<div style="padding:0 14px 6px"><div style="font-size:12px;color:${col};margin-bottom:5px">${msg}</div><div style="display:flex;gap:6px">${b("openProfile()","PERFIL")}${b("openAnalysis()","🔎 ANÁLISE")}${b("openEv()","📚 EVIDÊNCIA")}</div></div>`;
+}
+
+// ── Análise calculada pela app (enviada ao Coach) ──────────────
+// Regras da app [E10]: janela de 6 semanas; tendência só com 4+ sessões em 21+ dias;
+// variação dentro de ±2% conta como estável.
+const AN_WEEKS=6,AN_MIN_SESS=4,AN_MIN_SPAN_D=21,AN_NOISE=2;
+const mean=a=>a.reduce((x,y)=>x+y,0)/a.length;
+const fmt1=v=>(Math.round(v*10)/10).toString().replace(".",",");
+function buildAnalysis(){
+  const now=Date.now(),D=864e5,H=S.history;
+  if(!H.length)return{text:"Sem treinos registados: não há dados para analisar.",gaps:["sem treinos registados"]};
+  const win=H.filter(w=>w.date>now-AN_WEEKS*7*D);
+  const s28=H.filter(w=>w.date>now-28*D);
+  const dataWeeks=Math.min(4,Math.max(1,(now-H[0].date)/(7*D)));
+  const last=H[H.length-1];
+  const L=[],G=[];
+  L.push("FREQUÊNCIA E ADESÃO");
+  L.push(`- Sessões nas últimas 4 semanas: ${s28.length} (${fmt1(s28.length/dataWeeks)} por semana${dataWeeks<4?`; só há ${fmt1(dataWeeks)} semanas de histórico`:""}). Dias por semana declarados: ${PROF.dias?PROF.dias.v:"não respondido"}.`);
+  L.push(`- Última sessão há ${Math.floor((now-last.date)/D)} dia(s). Total de sessões registadas: ${H.length}.`);
+  const bd={Push:0,Pull:0,Legs:0};s28.forEach(w=>{if(bd[w.day]!=null)bd[w.day]++;});
+  L.push(`- Distribuição nas últimas 4 semanas: Push ${bd.Push}, Pull ${bd.Pull}, Legs ${bd.Legs}.`);
+  L.push("","VOLUME POR MÚSCULO (séries por semana nas últimas 4 semanas; referência da app entre parênteses, heurística [E1][E10])");
+  MUSCLES.forEach(m=>{
+    let sets=0,sess=0,w7=0;
+    s28.forEach(w=>{
+      let n=0;w.exercises.forEach(e=>{if(muscleOf(e.name)===m)n+=e.sets.length;});
+      sets+=n;if(n)sess++;if(w.date>now-7*D)w7+=n;
+    });
+    const [mev,mrv]=VOL[m];
+    L.push(`- ${m}: média ${fmt1(sets/dataWeeks)} séries/semana; últimos 7 dias ${w7}; ${fmt1(sess/dataWeeks)} sessões/semana (ref. ${mev}-${mrv})`);
+  });
+  L.push("","TENDÊNCIA POR EXERCÍCIO (últimas 6 semanas; e1RM estimado = carga × (1 + reps/30), compara a média das 2 primeiras com a das 2 últimas sessões)");
+  const insuf=[];
+  [...new Set(win.flatMap(w=>w.exercises.map(e=>e.name)))].forEach(n=>{
+    const ss=win.map(w=>({d:w.date,e:w.exercises.find(e=>e.name===n)})).filter(x=>x.e&&x.e.sets.length);
+    if(!ss.length)return;
+    const v=ss.map(x=>e1rm(x.e));
+    const sets=ss.flatMap(x=>x.e.sets);
+    const rirs=sets.map(x=>x.rir).filter(x=>typeof x==="number");
+    const spanD=(ss[ss.length-1].d-ss[0].d)/D;
+    const ps=getProgSuggestion(n);
+    let tr;
+    if(ss.length>=AN_MIN_SESS&&spanD>=AN_MIN_SPAN_D){
+      const a=mean(v.slice(0,2)),b=mean(v.slice(-2)),ch=(b-a)/a*100;
+      tr=`${fmt1(a)} → ${fmt1(b)} kg (${ch>0?"+":""}${fmt1(ch)}%): ${ch>AN_NOISE?"a subir":ch<-AN_NOISE?"a descer":"estável, dentro da variabilidade normal de ±"+AN_NOISE+"%"}`;
+    }else{tr="dados insuficientes para tendência";insuf.push(n);}
+    L.push(`- ${n}: ${ss.length} sessão(ões) em ${Math.round(spanD)} dia(s); e1RM ${tr}; RIR médio ${rirs.length?fmt1(mean(rirs)):"sem registo"}; ${fmt1(sets.length/ss.length)} séries por sessão; faixa de reps ${getRR(n).join("-")}${ps?`; sugestão atual da app: ${ps.text}`:""}`);
+  });
+  const W=[...WEIGHTS].sort((a,b)=>a.d-b.d);
+  L.push("","PESO CORPORAL");
+  if(!W.length){L.push("- Sem registos.");G.push("peso: sem registos");}
+  else{
+    const lw=W[W.length-1],tr=weightTrend(),age=Math.floor((now-lw.d)/D);
+    L.push(`- Último registo há ${age} dia(s): ${lw.kg} kg. ${tr?`Média de 7 dias ${fmt1(tr.cur)} kg; variação semanal ${tr.pct>0?"+":""}${tr.pct.toFixed(2)}%.`:"Sem registos em duas semanas seguidas para calcular a tendência semanal."}`);
+    if(!tr)G.push("peso: sem tendência semanal (faltam registos em duas semanas seguidas)");
+    if(age>7)G.push(`peso: último registo há ${age} dias`);
+  }
+  if(insuf.length)G.push(`sem tendência por falta de dados (menos de ${AN_MIN_SESS} sessões em ${AN_MIN_SPAN_D} dias): ${insuf.join(", ")}`);
+  const st=profStatus();
+  if(st.miss.length)G.push("perfil em falta: "+st.miss.join(", "));
+  if(st.stale.length)G.push("perfil desatualizado: "+st.stale.join(", "));
+  G.push("recuperação: só existe o sono autodeclarado, sem medições objetivas");
+  G.push("alimentação: só a fase e a proteína autodeclaradas, sem registo calórico");
+  L.push("","LACUNAS DE DADOS",...G.map(x=>"- "+x));
+  return{text:L.join("\n"),gaps:G};
+}
+function openAnalysis(){if(S.view!=="analysis")S.prevView=S.view;S.view="analysis";render();window.scrollTo(0,0);}
+function anBack(){S.view=(S.prevView&&!["analysis","evidence","profile"].includes(S.prevView))?S.prevView:"coach";render();window.scrollTo(0,0);}
+function renderAnalysis(){
+  return`<div class="section"><button class="btn btn-out btn-sm" onclick="anBack()">← VOLTAR</button>
+    <div class="lbl" style="margin-top:14px;color:var(--acc)">ANÁLISE ENVIADA AO COACH</div>
+    <div style="font-size:12px;color:#777;line-height:1.6;margin-bottom:10px">É isto que a app calcula a partir dos teus registos e envia ao Coach em cada pergunta, para ele não ter de adivinhar. Os limites (4 sessões em 21 dias, margem de 2%) são regras da app ${evTag("E10")}, e o e1RM é uma estimativa, não uma medição.</div>
+    <pre style="font-family:'Barlow',sans-serif;font-size:12px;color:#bbb;white-space:pre-wrap;line-height:1.65;background:var(--s1);border:1px solid var(--bd);padding:12px">${esc(buildAnalysis().text)}</pre><div style="height:20px"></div></div>`;
 }
 
 // ── Prompt do Coach: regras de evidência + base + dados do utilizador ──
 function buildCoachSystem(){
+  const analysis=buildAnalysis().text;
   const ev=Object.keys(EV).map(id=>{const e=EV[id];return`[${id}] ${e.t}. Nível: ${e.lvl}. ${e.s} Limites: ${e.lim} Uso na app: ${e.use}`;}).join("\n");
   const pf=PQ.map(q=>{
     const f=PROF[q.k];
-    if(!f)return`- ${q.l}: (não respondido)`;
+    if(!f)return`- ${q.s||q.l}: (não respondido)`;
     const old=Date.now()-f.t>q.age*864e5;
-    return`- ${q.l}: ${f.v} (respondido há ${agoTxt(f.t)}${old?"; DESATUALIZADO, pede ao utilizador para rever":""})`;
+    return`- ${q.s||q.l}: ${f.v} (respondido há ${agoTxt(f.t)}${old?"; DESATUALIZADO, pede ao utilizador para rever":""})`;
   }).join("\n");
   const W=[...WEIGHTS].sort((a,b)=>a.d-b.d),tr=weightTrend();
   const wt=W.length?`Últimos registos: ${W.slice(-6).map(w=>`${new Date(w.d).toLocaleDateString("pt-PT")} ${w.kg}kg`).join("; ")}.${tr?` Média 7 dias ${tr.cur.toFixed(1)}kg, variação semanal ${tr.pct.toFixed(2)}%.`:" Sem dados suficientes para tendência semanal."}`:"Sem registos de peso.";
@@ -1273,6 +1447,8 @@ REGRAS DE EVIDÊNCIA (obrigatórias)
 7. Dor, lesão, sintomas, doenças, perturbações alimentares ou défices calóricos extremos: não diagnostiques nem prescrevas; aconselha falar com um profissional de saúde.
 8. Responde em português de Portugal, em texto simples (sem markdown, sem asteriscos, sem cabeçalhos com #), de forma concisa e direta.
 9. Se o utilizador discordar com base noutra fonte (por exemplo um vídeo), não cedas só para agradar: compara com a base, diz o que ela sustenta e o que não sustenta, e que não podes verificar o que não está na base.
+10. A secção ANÁLISE CALCULADA PELA APP é a base dos teus diagnósticos sobre o treino. Se disser "dados insuficientes", ou se faltarem dados para a tua conclusão, diz explicitamente "não tenho informação suficiente para..." e indica o que falta, em vez de adivinhar. Não classifiques um plateau sem tendência calculada.
+11. A classificação a subir, estável ou a descer e a margem de 2% são regras da app [E10], não uma definição científica de plateau; diz isso quando falares de plateau. Antes de sugerires mais volume, confirma na análise o volume atual, o RIR médio, a frequência e se há dados suficientes; considera também alternativas (manter, ajustar o esforço, deload) e explica porque escolheste uma.
 
 REGRAS DA APP (para explicares porque é que a app sugere algo; são prática [E10], salvo indicação)
 - Dupla progressão: cada exercício tem uma faixa de reps (por defeito 6-10 em compostos e 10-15 em isolamento). Mantém a carga e sobe reps; ao chegar ao topo da faixa em todas as séries, sobe a carga (+2,5 kg, ou +5 kg em exercícios grandes de pernas) e volta ao início da faixa.
@@ -1290,21 +1466,24 @@ PESO CORPORAL
 ${wt}
 
 TREINOS RECENTES
-${recent||"Sem treinos ainda."}`;
+${recent||"Sem treinos ainda."}
+
+ANÁLISE CALCULADA PELA APP
+${analysis}`;
 }
 
 // ── Render: Coach ─────────────────────────────────────────────
 function renderCoach(){
   const apiKey=getApiKey();
   const keySection=apiKey
-    ?`<div class="key-ok"><span>✓ API Key configurada</span><button onclick="doDeleteKey()" style="background:none;border:none;color:#c00;font-family:'Barlow Condensed';font-size:12px;font-weight:700;cursor:pointer;letter-spacing:1px">REMOVER</button></div>`
-    :`<div class="tip-box"><b>⚠ Coach IA desactivado</b> — Clica em ENVIAR para configurar a tua API key da Anthropic.</div>`;
+    ?`<div class="key-ok"><span>✓ Gemini · ${esc(getGModel())}</span><span><button onclick="S.showKeyModal=true;render()" style="background:none;border:none;color:#aaa;font-family:'Barlow Condensed';font-size:12px;font-weight:700;cursor:pointer;letter-spacing:1px;margin-right:10px">MUDAR</button><button onclick="doDeleteKey()" style="background:none;border:none;color:#c00;font-family:'Barlow Condensed';font-size:12px;font-weight:700;cursor:pointer;letter-spacing:1px">REMOVER</button></span></div>`
+    :`<div class="tip-box"><b>⚠ Coach IA desativado</b>. Toca em ENVIAR para configurar a tua chave do Google Gemini.</div>`;
   const msgs=S.chat.map(m=>`<div style="align-self:${m.r==="u"?"flex-end":"flex-start"};display:flex;flex-direction:column;align-items:${m.r==="u"?"flex-end":"flex-start"};max-width:88%">${m.r==="a"?`<div style="font-size:10px;color:#FF5500;font-family:'Barlow Condensed';font-weight:700;letter-spacing:2px;margin-bottom:3px">COACH IA</div>`:""}<div class="msg msg-${m.r==="u"?"user":"ai"}">${m.r==="a"?evLink(esc(m.c)):esc(m.c)}</div></div>`).join("");
   const thinking=S.aiLoading?`<div style="align-self:flex-start;padding:10px 14px;background:#111;border:1px solid #1a1a1a;color:#FF5500;font-family:'Barlow Condensed';font-size:14px;letter-spacing:2px">A PENSAR...</div>`:"";
-  const modal=S.showKeyModal?`<div class="modal-bg" onclick="if(event.target===this)closeModal()"><div class="modal"><h2>API KEY · ANTHROPIC</h2><p>Para usar o Coach IA precisas de uma API key da Anthropic. A API é paga por utilização (cada mensagem custa uns cêntimos) e é separada da subscrição do Claude.<br/><br/>1. Vai a <a href="https://console.anthropic.com" target="_blank">console.anthropic.com</a><br/>2. Cria conta e adiciona crédito em <b>Billing</b><br/>3. <b>API Keys</b> → <b>Create Key</b><br/>4. Cola aqui em baixo<br/><br/><span style="color:#FF5500">A key fica guardada só no teu dispositivo.</span></p><input id="key-input" placeholder="sk-ant-..." style="margin-bottom:10px"/><button class="btn btn-acc" onclick="saveKey()">GUARDAR KEY</button><button class="btn btn-out" style="margin-top:8px" onclick="closeModal()">CANCELAR</button></div></div>`:"";
+  const modal=S.showKeyModal?`<div class="modal-bg" onclick="if(event.target===this)closeModal()"><div class="modal"><h2>CHAVE · GOOGLE GEMINI</h2><p>O Coach usa a API do Gemini. Há um nível gratuito, com limites, para alguns modelos.<br/><br/>1. Vai a <a href="https://aistudio.google.com/" target="_blank">aistudio.google.com</a> e cria uma chave (Get API key)<br/>2. Cola-a aqui em baixo<br/><br/><span style="color:#FF5500">A chave fica guardada só no teu dispositivo. No nível gratuito, a Google pode usar o que enviares para melhorar os produtos dela.</span></p><input id="key-input" placeholder="${getApiKey()?"Chave já guardada (deixa vazio para manter)":"Cola a chave aqui"}" style="margin-bottom:8px"/><input id="model-input" value="${esc(getGModel())}" style="margin-bottom:8px"/><button class="btn btn-out btn-sm" style="width:100%;margin-bottom:6px" onclick="testGemini()">TESTAR LIGAÇÃO E VER MODELOS</button><div id="model-list" style="font-size:12px;color:#aaa;margin-bottom:10px;line-height:1.6"></div><button class="btn btn-acc" onclick="saveKey()">GUARDAR</button><button class="btn btn-out" style="margin-top:8px" onclick="closeModal()">CANCELAR</button></div></div>`:"";
   const _hd=document.querySelector("header"),_nv=document.getElementById("nav");
   const h=window.innerHeight-(_hd?_hd.offsetHeight:60)-(_nv?_nv.offsetHeight:64);
-  return`<div class="chat-outer" style="height:${h}px"><div style="padding:10px 14px 6px">${keySection}</div>${coachBar()}<div class="chat-msgs" id="chat-msgs" style="flex:1">${msgs}${thinking}<div id="chat-end"></div></div><div class="chat-bar"><input class="inp" id="chat-input" placeholder="${apiKey?"Pergunta ao teu coach...":"Configura a API key primeiro..."}" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendChat();}" style="flex:1"/><button onclick="sendChat()" style="background:${!S.aiLoading?'#FF5500':'#2a2a2a'};border:none;color:#fff;padding:10px 14px;font-family:'Barlow Condensed';font-size:14px;font-weight:700;letter-spacing:1px;text-transform:uppercase;cursor:pointer;flex-shrink:0">ENVIAR</button></div>${modal}</div>`;
+  return`<div class="chat-outer" style="height:${h}px"><div style="padding:10px 14px 6px">${keySection}</div>${coachBar()}<div class="chat-msgs" id="chat-msgs" style="flex:1">${msgs}${thinking}<div id="chat-end"></div></div><div class="chat-bar"><input class="inp" id="chat-input" placeholder="${apiKey?"Pergunta ao teu coach...":"Configura a chave do Gemini primeiro..."}" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendChat();}" style="flex:1"/><button onclick="sendChat()" style="background:${!S.aiLoading?'#FF5500':'#2a2a2a'};border:none;color:#fff;padding:10px 14px;font-family:'Barlow Condensed';font-size:14px;font-weight:700;letter-spacing:1px;text-transform:uppercase;cursor:pointer;flex-shrink:0">ENVIAR</button></div>${modal}</div>`;
 }
 
 // ── Main Render ───────────────────────────────────────────────
@@ -1318,12 +1497,13 @@ function render(){
     case"history":  ct.innerHTML=renderHistory();break;
     case"progress": ct.innerHTML=renderProgress();break;
     case"profile":  ct.innerHTML=renderProfile();break;
+    case"analysis": ct.innerHTML=renderAnalysis();break;
     case"evidence": ct.innerHTML=renderEvidence();break;
     case"coach":    ct.innerHTML=renderCoach();
       setTimeout(()=>{const m=document.getElementById("chat-end");if(m)m.scrollIntoView();},10);
       break;
   }
-  const _nv2=(S.view==="profile"||S.view==="evidence")?"coach":S.view;
+  const _nv2=(S.view==="profile"||S.view==="evidence"||S.view==="analysis")?"coach":S.view;
   document.querySelectorAll(".nb").forEach(b=>b.classList.toggle("on",b.dataset.view===_nv2));
   const hd=document.querySelector("header");
   if(hd)document.documentElement.style.setProperty("--hh",hd.offsetHeight+"px");
