@@ -156,6 +156,41 @@ svg.chart{width:100%;overflow:visible;}
 .modal-bg{animation:fadeIn .18s ease-out;}
 .modal{animation:modalIn .22s cubic-bezier(.22,1,.36,1);}
 @media (prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important;}}
+
+/* ── Rolo de navegação (estilo seletor de modos da câmara) ── */
+nav{display:block;}
+nav::before,nav::after{content:"";position:absolute;top:0;height:56px;width:64px;z-index:2;pointer-events:none;}
+nav::before{left:0;background:linear-gradient(90deg,var(--s1),rgba(17,17,17,0));}
+nav::after{right:0;background:linear-gradient(270deg,var(--s1),rgba(17,17,17,0));}
+#reel{display:flex;align-items:center;height:56px;overflow-x:auto;scroll-snap-type:x mandatory;scrollbar-width:none;touch-action:pan-x;overscroll-behavior-x:contain;-webkit-overflow-scrolling:touch;}
+#reel::-webkit-scrollbar{display:none;}
+.rs{flex:0 0 calc(50% - 50px);display:block;height:1px;}
+.nb{flex:0 0 100px;height:56px;padding:0;flex-direction:row;justify-content:center;align-items:center;gap:5px;font-size:12px;letter-spacing:1.2px;scroll-snap-align:center;color:var(--mu);opacity:.3;transition:opacity .18s,color .18s;}
+.nb.d1{opacity:.55;}
+.nb.on{color:var(--mu);}
+.nb.near{color:var(--acc);opacity:1;}
+.nb svg{display:none;width:16px;height:16px;}
+.nb.near svg{display:block;}
+#reel-win{position:absolute;left:50%;top:6px;width:104px;height:44px;margin-left:-52px;border:1.5px solid var(--acc);border-radius:10px;pointer-events:none;z-index:3;}
+/* ── Cantos menos agressivos ── */
+input,select,textarea{border-radius:8px;}
+.btn,.opt,.btn-done{border-radius:8px;}
+.btn-del,.rir-btn,.rest-b,.qlink{border-radius:6px;}
+.stat,.preview-ex,.row-recent,.tip-box,.warn-box,.key-ok,.deload-banner,.prev-hint,.ev-card{border-radius:8px;}
+.ex-block,.hist-card{border-radius:10px;}
+.qcard,.qback,.modal{border-radius:12px;}
+.prog-chip,.pill,.badge,.evt{border-radius:5px;}
+.msg{border-radius:14px;}
+.msg-user{border-bottom-right-radius:4px;}
+.msg-ai{border-bottom-left-radius:4px;}
+.thinking{border-radius:14px 14px 14px 4px;}
+.fly-bg{border-radius:14px 14px 4px 14px;}
+.rest-active{border-radius:0 0 10px 10px;}
+pre{border-radius:8px;}
+
+html,body{overflow-x:clip;}
+.hist-card,.ex-block,.stat{overflow:hidden;}
+[style*="border:1px solid"]{border-radius:8px;}
 </style>
 </head>
 <body>
@@ -167,22 +202,15 @@ svg.chart{width:100%;overflow:visible;}
   <div id="rest-wrap"></div>
   <div id="content"></div>
   <nav id="nav">
-    <button class="nb on" data-view="home" onclick="nav('home')">
-      <svg viewBox="0 0 24 24" fill="currentColor"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg>Início
-    </button>
-    <button class="nb" data-view="workout" onclick="navWorkout()">
-      <svg viewBox="0 0 24 24" fill="currentColor"><path d="M20.57 14.86L22 13.43 20.57 12 17 15.57 8.43 7 12 3.43 10.57 2 9.14 3.43 7.71 2 5.57 4.14 4.14 2.71 2.71 4.14l1.43 1.43L2 7.71l1.43 1.43L2 10.57 3.43 12 7 8.43 15.57 17 12 20.57 13.43 22l1.43-1.43L16.29 22l2.14-2.14 1.43 1.43 1.43-1.43-1.43-1.43L22 16.29z"/></svg>Treino
-    </button>
-    <button class="nb" data-view="history" onclick="nav('history')">
-      <svg viewBox="0 0 24 24" fill="currentColor"><path d="M13 3c-4.97 0-9 4.03-9 9H1l3.89 3.89.07.14L9 12H6c0-3.87 3.13-7 7-7s7 3.13 7 7-3.13 7-7 7c-1.93 0-3.68-.79-4.94-2.06l-1.42 1.42C8.27 19.99 10.51 21 13 21c4.97 0 9-4.03 9-9s-4.03-9-9-9zm-1 5v5l4.28 2.54.72-1.21-3.5-2.08V8H12z"/></svg>Histórico
-    </button>
-    <button class="nb" data-view="progress" onclick="nav('progress')">
-      <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3.5 18.49l6-6.01 4 4L22 6.92l-1.41-1.41-7.09 7.97-4-4L2 16.99z"/></svg>Progresso
-    </button>
-    <button class="nb" data-view="coach" onclick="nav('coach')">
-      <svg viewBox="0 0 24 24" fill="currentColor"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-2 12H6v-2h12v2zm0-3H6V9h12v2zm0-3H6V6h12v2z"/></svg>Coach IA
-    </button>
-  </nav>
+  <div id="reel"><i class="rs"></i>
+    <button class="nb on near" data-view="home" onclick="reelTo(0)"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg><span>Início</span></button>
+    <button class="nb" data-view="workout" onclick="reelTo(1)"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M20.57 14.86L22 13.43 20.57 12 17 15.57 8.43 7 12 3.43 10.57 2 9.14 3.43 7.71 2 5.57 4.14 4.14 2.71 2.71 4.14l1.43 1.43L2 7.71l1.43 1.43L2 10.57 3.43 12 7 8.43 15.57 17 12 20.57 13.43 22l1.43-1.43L16.29 22l2.14-2.14 1.43 1.43 1.43-1.43-1.43-1.43L22 16.29z"/></svg><span>Treino</span></button>
+    <button class="nb" data-view="history" onclick="reelTo(2)"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M13 3c-4.97 0-9 4.03-9 9H1l3.89 3.89.07.14L9 12H6c0-3.87 3.13-7 7-7s7 3.13 7 7-3.13 7-7 7c-1.93 0-3.68-.79-4.94-2.06l-1.42 1.42C8.27 19.99 10.51 21 13 21c4.97 0 9-4.03 9-9s-4.03-9-9-9zm-1 5v5l4.28 2.54.72-1.21-3.5-2.08V8H12z"/></svg><span>Histórico</span></button>
+    <button class="nb" data-view="progress" onclick="reelTo(3)"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M3.5 18.49l6-6.01 4 4L22 6.92l-1.41-1.41-7.09 7.97-4-4L2 16.99z"/></svg><span>Progresso</span></button>
+    <button class="nb" data-view="coach" onclick="reelTo(4)"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-2 12H6v-2h12v2zm0-3H6V9h12v2zm0-3H6V6h12v2z"/></svg><span>Coach IA</span></button>
+    <i class="rs"></i></div>
+  <div id="reel-win"></div>
+</nav>
 </div>
 <input type="file" id="imp-file" accept="application/json,.json" style="display:none" onchange="importData(this)">
 
@@ -1613,9 +1641,13 @@ function render(){
       setTimeout(()=>{const m=document.getElementById("chat-end");if(m)m.scrollIntoView();},10);
       break;
   }
-  if(S._rv!==S.view){S._rv=S.view;ct.classList.remove("vin");void ct.offsetWidth;ct.classList.add("vin");}
-  const _nv2=(S.view==="profile"||S.view==="evidence"||S.view==="analysis")?"coach":S.view;
-  document.querySelectorAll(".nb").forEach(b=>b.classList.toggle("on",b.dataset.view===_nv2));
+  if(S._rv!==S.view){
+    const prev=S._rv;S._rv=S.view;
+    if(S._dir&&ct.animate&&!reduced())ct.animate([{opacity:0,transform:`translateX(${S._dir*28}px)`},{opacity:1,transform:"none"}],{duration:220,easing:"cubic-bezier(.22,1,.36,1)"});
+    else{ct.classList.remove("vin");void ct.offsetWidth;ct.classList.add("vin");}
+    S._dir=0;
+    syncReel(!!prev);
+  }
   const hd=document.querySelector("header");
   if(hd)document.documentElement.style.setProperty("--hh",hd.offsetHeight+"px");
   paintRestBar();
@@ -1624,6 +1656,86 @@ function render(){
 if("serviceWorker" in navigator)window.addEventListener("load",()=>navigator.serviceWorker.register("sw.js").catch(e=>{SWERR=String(e&&e.message||e);}));
 // Pede ao Chrome para não apagar os dados automaticamente (útil com pouco espaço)
 try{if(navigator.storage&&navigator.storage.persist)navigator.storage.persist();}catch{}
+// ── Rolo de navegação + deslizar a página ─────────────────────
+const TABS=["home","workout","history","progress","coach"];
+let reelLock=false,reelTouch=false,reelT=null,reelD=null;
+function tabIdx(){const v=(S.view==="profile"||S.view==="evidence"||S.view==="analysis")?"coach":S.view;return TABS.indexOf(v);}
+function goTab(v){if(v==="workout")navWorkout();else nav(v);}
+function reelEl(){return document.getElementById("reel");}
+function reelItems(){const r=reelEl();return r?[...r.querySelectorAll(".nb")]:[];}
+function reelCenter(i){const r=reelEl(),b=reelItems()[i];return b.offsetLeft+b.offsetWidth/2-r.clientWidth/2;}
+function reelNearest(){
+  const r=reelEl(),c=r.scrollLeft+r.clientWidth/2;
+  let bi=0,bd=1e9;
+  reelItems().forEach((b,i)=>{const d=Math.abs(b.offsetLeft+b.offsetWidth/2-c);if(d<bd){bd=d;bi=i;}});
+  return bi;
+}
+function reelPaint(){
+  if(!reelEl())return -1;
+  const n=reelNearest();
+  reelItems().forEach((b,i)=>{b.classList.toggle("near",i===n);b.classList.toggle("d1",Math.abs(i-n)===1);});
+  return n;
+}
+function syncReel(smooth){
+  const r=reelEl(),i=tabIdx();
+  if(!r||i<0)return;
+  const x=reelCenter(i);
+  if(Math.abs(r.scrollLeft-x)>=2){
+    reelLock=true;
+    r.scrollTo({left:x,behavior:smooth&&!reduced()?"smooth":"auto"});
+    clearTimeout(reelT);reelT=setTimeout(()=>{reelLock=false;reelPaint();},smooth?450:60);
+  }
+  reelPaint();
+}
+function reelTo(i){
+  const r=reelEl();if(!r)return;
+  reelLock=false;
+  r.scrollTo({left:reelCenter(i),behavior:reduced()?"auto":"smooth"});
+  if(reduced())reelSettle();
+}
+function reelSettle(){
+  if(reelLock||reelTouch)return;
+  const n=reelPaint();
+  if(n<0||n===tabIdx())return;
+  S._dir=n>tabIdx()?1:-1;
+  try{if(navigator.vibrate)navigator.vibrate(8);}catch{}
+  goTab(TABS[n]);
+}
+(function(){
+  const r=reelEl(),ct=document.getElementById("content");
+  if(!r||!ct)return;
+  r.addEventListener("scroll",()=>{
+    if(reelD)return;
+    reelD=requestAnimationFrame(()=>{reelD=null;reelPaint();});
+    clearTimeout(r._st);r._st=setTimeout(reelSettle,140);
+  },{passive:true});
+  r.addEventListener("scrollend",reelSettle);
+  r.addEventListener("touchstart",()=>{reelTouch=true;reelLock=false;},{passive:true});
+  const rel=()=>{reelTouch=false;clearTimeout(r._st);r._st=setTimeout(reelSettle,160);};
+  r.addEventListener("touchend",rel,{passive:true});
+  r.addEventListener("touchcancel",rel,{passive:true});
+  // deslizar a página para a esquerda/direita muda de separador
+  let x0=0,y0=0,t0=0,ok=false;
+  const hScroll=el=>{for(;el&&el!==ct;el=el.parentElement){if(el.scrollWidth>el.clientWidth+2&&/auto|scroll/.test(getComputedStyle(el).overflowX))return true;}return false;};
+  ct.addEventListener("touchstart",e=>{
+    const t=e.touches[0];
+    x0=t.clientX;y0=t.clientY;t0=Date.now();
+    const tg=e.target;
+    ok=e.touches.length===1&&TABS.includes(S.view)&&!S.showKeyModal&&x0>28&&x0<window.innerWidth-28
+      &&!(tg.closest&&tg.closest("input,select,textarea,#chat-msgs,svg.chart,pre"))&&!hScroll(tg);
+  },{passive:true});
+  ct.addEventListener("touchend",e=>{
+    if(!ok)return;ok=false;
+    const t=e.changedTouches[0],dx=t.clientX-x0,dy=t.clientY-y0;
+    if(Math.abs(dx)<70||Math.abs(dx)<Math.abs(dy)*1.8||Date.now()-t0>600)return;
+    const n=tabIdx()+(dx<0?1:-1);
+    if(n<0||n>=TABS.length)return;
+    S._dir=dx<0?1:-1;
+    try{if(navigator.vibrate)navigator.vibrate(8);}catch{}
+    goTab(TABS[n]);
+  },{passive:true});
+})();
+
 loadProfile();
 loadStorage();
 // Resume an interrupted workout (e.g. after the browser reloaded the page)
